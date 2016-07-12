@@ -39,6 +39,7 @@
 #include <iostream>
 #include <assert.h>
 #include <mutex>
+#include <vector>
 #include "cxx/sisocks.h"
 #include "cxx/Rconnection.h"
 #include <SWI-Stream.h>
@@ -309,10 +310,11 @@ sisocks_ok(int status)
 
 
 typedef enum dtype
-{ D_UNKNOWN,
+{ D_UNKNOWN = 0,
   D_INTEGER,
   D_DOUBLE,
 } dtype;
+
 
 static void
 set_type(const PlTerm &t, dtype *type, dtype to)
@@ -324,49 +326,118 @@ set_type(const PlTerm &t, dtype *type, dtype to)
   throw PlTypeError("Rdata", t);
 }
 
-static int
-classify_list(const PlTerm &t, size_t *len)
-{ dtype type = D_UNKNOWN;
 
-  switch(PL_skip_list(t, 0, len))
-  { case PL_LIST:
-      break;
-    case PL_PARTIAL_LIST:
-      throw PlInstantiationError();
-    case PL_CYCLIC_TERM:
-    case PL_NOT_A_LIST:
-    default:
-      throw PlTypeError("list", t);
+class PlRExp
+{
+public:
+  Rexp *exp;
+  dtype type = D_UNKNOWN;
+  std::vector<int> iv;
+  std::vector<double> dv;
+
+  PlRExp()
+  {
   }
 
-  PlTail tail(t);
-  PlTerm e;
-  while(tail.next(e))
-  { switch(PL_term_type(e))
-    { case PL_VARIABLE:
-	throw PlInstantiationError(e);
-      case PL_INTEGER:
-	set_type(e, &type, D_INTEGER);
+  ~PlRExp()
+  { delete exp;
+  }
+
+  void
+  promote(dtype t)
+  { if ( t > type )
+    { switch(t)
+      { case D_INTEGER:
+	  iv.reserve(16);
+	  break;
+        case D_DOUBLE:
+	  dv.reserve(16);
+	  if ( type == D_INTEGER )
+	  { for(size_t i=0; i<iv.size(); i++)
+	      dv.push_back((double)iv[i]);
+	    iv.resize(0);
+	  }
+	  break;
+      }
+      type = t;
+    }
+  }
+};
+
+
+static void
+list_to_rexp(const PlTerm &t, PlRExp *exp)
+{ PlTail list(t);
+  PlTerm head;
+
+  for(size_t i=0; list.next(head); i++)
+  { switch(exp->type)
+    { case D_UNKNOWN:
+	switch(PL_term_type(head))
+	{ case PL_VARIABLE:
+	    throw PlInstantiationError(head);
+	  case PL_INTEGER:
+	    exp->promote(D_INTEGER);
+	    goto case_i;
+	  case PL_FLOAT:
+	    exp->promote(D_DOUBLE);
+	    goto case_d;
+	  break;
+	}
+      case D_INTEGER:
+      case_i:
+      { int i;
+	double d;
+
+	if ( PL_get_integer(head, &i) )
+	{ exp->iv.push_back(i);
+	} else if ( PL_get_float(head, &d) )
+	{ exp->promote(D_DOUBLE);
+	  exp->dv.push_back(d);
+	} else
+	  throw PlTypeError("numeric", head);
         break;
-      case PL_FLOAT:
-	set_type(e, &type, D_DOUBLE);
+      }
+      case D_DOUBLE:
+      case_d:
+	exp->dv.push_back(head);
         break;
-      default:
-	throw PlTypeError("Rdata", e);
     }
   }
 
-  return type;
+  switch(exp->type)
+  { case D_INTEGER:
+      exp->exp = new Rinteger(exp->iv.data(), exp->iv.size());
+      break;
+    case D_DOUBLE:
+      exp->exp = new Rdouble(exp->dv.data(), exp->dv.size());
+      break;
+  }
 }
 
-static void
-get_array(const PlTerm &t, int *array)
-{ int i = 0;
-  PlTail tail(t);
-  PlTerm e;
 
-  while(tail.next(e))
-    array[i++] = e;
+static PlRExp *
+term_to_rexp(const PlTerm &t)
+{ PlRExp *exp = new PlRExp;
+
+  switch(PL_term_type(t))
+  { case PL_LIST_PAIR:
+    { list_to_rexp(t, exp);
+      break;
+    }
+    case PL_INTEGER:
+    { int i = t;
+      exp->exp = new Rinteger(&i, 1);
+      break;
+    }
+    case PL_FLOAT:
+    { double f = t;
+      exp->exp = new Rdouble(&f, 1);
+      break;
+    }
+  }
+
+  return exp;
 }
 
 
@@ -505,18 +576,10 @@ PREDICATE(r_set, 3)
   const char *vname = A2;
 
   get_Rref(A1, &ref);
-  switch(classify_list(A3, &len))
-  { case D_INTEGER:
-    { int *iv = new int[len];
-
-      get_array(A3, iv);
-      Rinteger *ri = new Rinteger(iv, len);
-      ref->rc->assign(vname, ri);
-      delete ri;
-      delete iv;
-      return TRUE;
-    }
-  }
+  PlRExp *exp = term_to_rexp(A3);
+  ref->rc->assign(vname, exp->exp);
+  delete(exp);
+  return TRUE;
 }
 
 
