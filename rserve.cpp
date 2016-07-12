@@ -373,10 +373,7 @@ get_array(const PlTerm &t, int *array)
 static int
 unify_exp(const PlTerm &t, const Rexp *exp)
 { switch(exp->type)
-  { case XT_INT:
-    {
-    }
-    case XT_ARRAY_INT:
+  { case XT_ARRAY_INT:
     { Rinteger *ri = (Rinteger*)exp;
       Rsize_t len = ri->length();
       PlTail tail(t);
