@@ -35,6 +35,7 @@
 :- module(rserve,
 	  [ r_open/2,				% -RServe, +Options
 	    r_close/1,				% +RServe
-	    r_set/3				% +RServe, +Var, +Data
+	    r_set/3,				% +RServe, +Var, +Data
+	    r_eval/3				% +RServe, +Command, -Result
 	  ]).
 :- use_foreign_library(rserve).

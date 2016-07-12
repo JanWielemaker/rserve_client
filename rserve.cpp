@@ -368,6 +368,46 @@ get_array(const PlTerm &t, int *array)
 }
 
 
+static int
+unify_exp(const PlTerm &t, const Rexp *exp)
+{ switch(exp->type)
+  { case XT_INT:
+    {
+    }
+    case XT_ARRAY_INT:
+    { Rinteger *ri = (Rinteger*)exp;
+      Rsize_t len = ri->length();
+      PlTail tail(t);
+      PlTerm h;
+
+      for(Rsize_t i=0; i<len; i++)
+      { if ( !PL_put_integer(h, ri->intAt(i)) ||
+	     !tail.append(h) )
+	  return FALSE;
+      }
+
+      return tail.close();
+    }
+    case XT_VECTOR:
+    { const Rexp *e;
+      PlTail tail(t);
+      PlTerm h;
+
+      for(int i=0; e=(const Rexp*)((Rvector*)exp)->elementAt(i); i++)
+      { PL_put_variable(h);
+	if ( !unify_exp(h, e) ||
+	     !tail.append(h) )
+	  return FALSE;
+      }
+      return tail.close();
+    }
+    default:
+      Sdprintf("Rexp of type %d\n", exp->type);
+      return FALSE;
+  }
+}
+
+
 		 /*******************************
 		 *	    PREDICATES		*
 		 *******************************/
@@ -414,11 +454,25 @@ PREDICATE(r_set, 3)
     { int *iv = new int[len];
 
       get_array(A3, iv);
-      Rinteger *ri = new Rinteger(iv, 6);
+      Rinteger *ri = new Rinteger(iv, len);
       ref->rc->assign(vname, ri);
       delete ri;
       delete iv;
       return TRUE;
     }
   }
+}
+
+
+PREDICATE(r_eval, 3)
+{ Rref *ref;
+  const char *command = A2;
+  int rc;
+
+  get_Rref(A1, &ref);
+  Rexp *result = ref->rc->eval(command);
+  rc = unify_exp(A3, result);
+  delete result;
+
+  return rc;
 }
