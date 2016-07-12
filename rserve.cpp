@@ -520,11 +520,15 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 static const PlAtom ATOM_alias("alias");
 static const PlAtom ATOM_open("open");
 static const PlAtom ATOM_once("once");
+static const PlAtom ATOM_host("host");
+static const PlAtom ATOM_port("port");
 
 PREDICATE(r_open, 2)
 { Rref *ref;
   atom_t alias = NULL_ATOM;
   int once = FALSE;
+  const char *host = "127.0.0.1";
+  int port = default_Rsrv_port;
 
   PlTail tail(A2);
   PlTerm opt;
@@ -533,7 +537,11 @@ PREDICATE(r_open, 2)
     size_t arity;
 
     if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
-    { if ( ATOM_alias == name )
+    { if ( ATOM_host == name )
+      { host = opt[1];
+      } else if	( ATOM_port == name )
+      { port = opt[1];
+      } else if ( ATOM_alias == name )
       { if ( !PL_get_atom_ex(opt[1], &alias) )
 	  return FALSE;
 	once = TRUE;
@@ -565,7 +573,7 @@ PREDICATE(r_open, 2)
   ref = (Rref *)PL_malloc(sizeof(*ref));
   memset(ref, 0, sizeof(*ref));
 
-  ref->rc = new Rconnection();
+  ref->rc = new Rconnection(host, port);
   sisocks_ok(ref->rc->connect());
   ref->name = alias;
   if ( once )
