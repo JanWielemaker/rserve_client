@@ -306,6 +306,68 @@ sisocks_ok(int status)
 }
 
 
+typedef enum dtype
+{ D_UNKNOWN,
+  D_INTEGER,
+  D_DOUBLE,
+} dtype;
+
+static void
+set_type(const PlTerm &t, dtype *type, dtype to)
+{ if ( to >= *type )
+  { *type = to;
+    return;
+  }
+
+  throw PlTypeError("Rdata", t);
+}
+
+static int
+classify_list(const PlTerm &t, size_t *len)
+{ dtype type = D_UNKNOWN;
+
+  switch(PL_skip_list(t, 0, len))
+  { case PL_LIST:
+      break;
+    case PL_PARTIAL_LIST:
+      throw PlInstantiationError();
+    case PL_CYCLIC_TERM:
+    case PL_NOT_A_LIST:
+    default:
+      throw PlTypeError("list", t);
+  }
+
+  PlTail tail(t);
+  PlTerm e;
+  while(tail.next(e))
+  { switch(PL_term_type(e))
+    { case PL_VARIABLE:
+	throw PlInstantiationError(e);
+      case PL_INTEGER:
+	set_type(e, &type, D_INTEGER);
+        break;
+      case PL_FLOAT:
+	set_type(e, &type, D_DOUBLE);
+        break;
+      default:
+	throw PlTypeError("Rdata", e);
+    }
+  }
+
+  return type;
+}
+
+static void
+get_array(const PlTerm &t, int *array)
+{ int i = 0;
+  PlTail tail(t);
+  PlTerm e;
+
+  while(tail.next(e))
+    array[i++] = e;
+}
+
+
 		 /*******************************
 		 *	    PREDICATES		*
 		 *******************************/
@@ -320,4 +382,43 @@ PREDICATE(r_open, 2)
   sisocks_ok(ref->rc->connect());
 
   return unify_R_ref(A1, ref);
+}
+
+
+PREDICATE(r_close, 1)
+{ Rref *ref;
+
+  get_Rref(A1, &ref);
+  Rconnection *rc = ref->rc;
+
+  ref->rc = NULL;
+  ref->flags |= R_DESTROYED;
+  if ( ref->name )
+  { unalias(ref->name);
+    ref->name = NULL_ATOM;
+  }
+
+  delete rc;
+  return TRUE;
+}
+
+
+PREDICATE(r_set, 3)
+{ Rref *ref;
+  size_t len;
+  const char *vname = A2;
+
+  get_Rref(A1, &ref);
+  switch(classify_list(A3, &len))
+  { case D_INTEGER:
+    { int *iv = new int[len];
+
+      get_array(A3, iv);
+      Rinteger *ri = new Rinteger(iv, 6);
+      ref->rc->assign(vname, ri);
+      delete ri;
+      delete iv;
+      return TRUE;
+    }
+  }
 }
