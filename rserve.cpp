@@ -309,6 +309,25 @@ sisocks_ok(int status)
 }
 
 
+class RError : public PlException
+{
+public:
+  RError(int status) :
+    PlException(PlCompound("error",
+			   PlTermv(PlCompound("r_error",
+					      PlTermv((long)status)),
+				   PlTerm())))
+  {
+  }
+};
+
+
+static void
+rok(int status)
+{ if ( status )
+    throw RError(status);
+}
+
 typedef enum dtype
 { D_UNKNOWN = 0,
   D_INTEGER,
@@ -441,10 +460,14 @@ term_to_rexp(const PlTerm &t)
 }
 
 
+static const PlAtom ATOM_null("null");
+
 static int
 unify_exp(const PlTerm &t, const Rexp *exp)
 { switch(exp->type)
-  { case XT_ARRAY_INT:
+  { case XT_NULL:
+      return PL_unify_atom(t, ATOM_null.handle);
+    case XT_ARRAY_INT:
     { Rinteger *ri = (Rinteger*)exp;
       Rsize_t len = ri->length();
       PlTail tail(t);
@@ -594,4 +617,35 @@ PREDICATE(r_eval, 3)
   delete result;
 
   return rc;
+}
+
+
+PREDICATE(r_read_file, 3)
+{ Rref *ref;
+  const char *filename = A2;
+  char buf[4096];
+  std::string data;
+  int rc;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->openFile(filename));
+  data.reserve(sizeof(buf));
+  while((rc=ref->rc->readFile(buf, sizeof(buf))) > 0)
+  { data.append(buf, (size_t)rc);
+  }
+  rok(ref->rc->closeFile());
+
+  return PL_unify_chars(A3, PL_STRING, data.size(), data.data());
+}
+
+
+PREDICATE(r_remove_file, 2)
+{ Rref *ref;
+  const char *filename = A2;
+  int rc;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->removeFile(filename));
+
+  return TRUE;
 }

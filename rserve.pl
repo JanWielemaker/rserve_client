@@ -36,6 +36,8 @@
 	  [ r_open/2,				% -RServe, +Options
 	    r_close/1,				% +RServe
 	    r_set/3,				% +RServe, +Var, +Data
-	    r_eval/3				% +RServe, +Command, -Result
+	    r_eval/3,				% +RServe, +Command, -Result
+	    r_read_file/3,			% +Result, +FileName, -String
+	    r_remove_file/2			% +Result, +FileName
 	  ]).
 :- use_foreign_library(rserve).
