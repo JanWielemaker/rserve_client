@@ -34,6 +34,7 @@
 
 #define MAIN	     // we want build_sin()
 #define SOCK_ERRORS  // we will use verbose socket errors
+#define PL_ARITY_AS_SIZE
 
 #include <iostream>
 #include <assert.h>
@@ -48,6 +49,7 @@
 		 *******************************/
 
 #define R_DESTROYED	0x0001		/* Was destroyed by user  */
+#define R_OPEN_ONCE	0x0002		/* Reuse alias */
 
 typedef struct Rref
 { Rconnection   *rc;			/* Connection handle */
@@ -385,7 +387,19 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 	     !tail.append(h) )
 	  return FALSE;
       }
+      return tail.close();
+    }
+    case XT_ARRAY_DOUBLE:
+    { Rdouble *rd = (Rdouble*)exp;
+      Rsize_t len = rd->length();
+      PlTail tail(t);
+      PlTerm h;
 
+      for(Rsize_t i=0; i<len; i++)
+      { if ( !PL_put_float(h, rd->doubleAt(i)) ||
+	     !tail.append(h) )
+	  return FALSE;
+      }
       return tail.close();
     }
     case XT_VECTOR:
@@ -412,14 +426,59 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 		 *	    PREDICATES		*
 		 *******************************/
 
+static const PlAtom ATOM_alias("alias");
+static const PlAtom ATOM_open("open");
+static const PlAtom ATOM_once("once");
+
 PREDICATE(r_open, 2)
 { Rref *ref;
+  atom_t alias = NULL_ATOM;
+  int once = FALSE;
+
+  PlTail tail(A2);
+  PlTerm opt;
+  while(tail.next(opt))
+  { atom_t name;
+    size_t arity;
+
+    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    { if ( ATOM_alias == name )
+      { if ( !PL_get_atom_ex(opt[1], &alias) )
+	  return FALSE;
+	once = TRUE;
+      } else if ( ATOM_open == name )
+      { atom_t open;
+
+	if ( !PL_get_atom_ex(opt[1], &open) )
+	  return FALSE;
+	if ( ATOM_once == open )
+	  once = TRUE;
+	else
+	  throw PlDomainError("open_option", opt[1]);
+      }
+    }
+  }
+
+  if ( alias && once )
+  { atom_t existing;
+
+    if ( (existing=get_alias(alias)) )
+    { Rref *eref;
+
+      if ( (eref=symbol_Rref(existing)) &&
+	   (eref->flags&R_OPEN_ONCE) )
+	return PL_unify_atom(A1, existing);
+    }
+  }
 
   ref = (Rref *)PL_malloc(sizeof(*ref));
   memset(ref, 0, sizeof(*ref));
 
   ref->rc = new Rconnection();
   sisocks_ok(ref->rc->connect());
+  ref->name = alias;
+  if ( once )
+    ref->flags |= R_OPEN_ONCE;
 
   return unify_R_ref(A1, ref);
 }
