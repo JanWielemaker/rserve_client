@@ -52,9 +52,11 @@
 %	  - alias(+Alias)
 %	  Give a name to the connection.
 %	  - host(+Host)
-%	  Connect to Host (default: =|127.0.0.1|=)
+%	  Connect to Host (default: =|127.0.0.1|=).
 %	  - port(+Port)
-%	  Connect to port (default: 6311)
+%	  Connect to port (default: 6311).  If Port is `-1`, `Host` is
+%	  interpreted as a path name and a Unix domain socket (named
+%	  pipe) is used.
 %	  - open(+How)
 %	  If `once`, turn opening a connection for the second time
 %	  in a no-op.
