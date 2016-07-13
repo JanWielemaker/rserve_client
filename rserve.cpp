@@ -551,6 +551,7 @@ term_to_rexp(const PlTerm &t)
 
 
 static const PlAtom ATOM_null("null");
+static const PlAtom ATOM_clos("<R-closure>");
 
 static int
 unify_exp(const PlTerm &t, const Rexp *exp)
@@ -622,6 +623,9 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 	  return FALSE;
       }
       return tail.close();
+    }
+    case XT_CLOS:
+    { return PL_unify_atom(t, ATOM_clos.handle);
     }
     default:
       Sdprintf("Rexp of type %d\n", exp->type);
