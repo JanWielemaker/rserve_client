@@ -117,6 +117,11 @@
 %	  assumes UTF-8 encoding for R. See the `encoding` setting in
 %	  the Rserve config file.
 
+%%	r_eval(+Rserve, +Command) is det.
+%
+%	Evaluate R Command without waiting for a reply.  This is called
+%	_void_ evaluation in Rserve.
+
 %%	r_read_file(+RServe, +FileName, -Content:string) is det.
 %
 %	Read the content of a remote file into the string Content.
