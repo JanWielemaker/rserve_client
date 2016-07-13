@@ -14,6 +14,11 @@ mean(List, Mean) :-
 	r_assign(r, v, List),
 	r_eval(r, "mean(v)", Mean).
 
+mean_1m :-
+	numlist(1, 1 000 000, List),
+	time(mean(List, Mean)),
+	writeln(Mean).
+
 iris(IRIS) :-
 	r_eval(r, "data(iris); iris", IRIS).
 
