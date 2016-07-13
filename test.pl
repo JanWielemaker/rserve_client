@@ -1,11 +1,5 @@
 :- use_module(rserve).
 
-cp(In, Out) :-
-	r_open(R, []),
-	r_assign(R, v, In),
-	r_eval(R, v, Out),
-	r_close(R).
-
 r :-
 	r_open(R,
 	       [ alias(r),
@@ -13,6 +7,10 @@ r :-
 		 port(-1)
 	       ]),
 	assertion(R==r).
+
+cp(In, Out) :-
+	r_assign(r, v, In),
+	r_eval(r, v, Out).
 
 mean(List, Mean) :-
 	r_assign(r, v, List),
@@ -22,6 +20,12 @@ mean_1m :-
 	numlist(1, 1 000 000, List),
 	time(mean(List, Mean)),
 	writeln(Mean).
+
+leak :-
+	forall(repeat,
+	       (   numlist(1, 1 000, List),
+		   mean(List, _Mean)
+	       )).
 
 iris(IRIS) :-
 	r_eval(r, "data(iris); iris", IRIS).
