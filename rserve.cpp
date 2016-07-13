@@ -774,3 +774,16 @@ PREDICATE(r_remove_file, 2)
 
   return TRUE;
 }
+
+
+PREDICATE(r_login, 3)
+{ Rref *ref;
+  const char *user = A2;
+  const char *password = A3;
+  int rc;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->login(user, password));
+
+  return TRUE;
+}

@@ -33,12 +33,15 @@
 */
 
 :- module(rserve,
-	  [ r_open/2,				% -RServe, +Options
-	    r_close/1,				% +RServe
-	    r_assign/3,				% +RServe, +Var, +Data
-	    r_eval/3,				% +RServe, +Command, -Result
-	    r_read_file/3,			% +Result, +FileName, -String
-	    r_remove_file/2			% +Result, +FileName
+	  [ r_open/2,			% -RServe, +Options
+	    r_close/1,			% +RServe
+	    r_login/2,			% +RServe, +User, +Password
+
+	    r_assign/3,			% +RServe, +Var, +Data
+	    r_eval/3,			% +RServe, +Command, -Result
+
+	    r_read_file/3,		% +Result, +FileName, -String
+	    r_remove_file/2		% +Result, +FileName
 	  ]).
 :- use_foreign_library(rserve).
 
@@ -65,19 +68,53 @@
 %
 %	Close an open connection to an R server.
 
+%%	r_login(+Rserve, +User, +Password) is det.
+%
+%	Login with the R server.
+
+
 %%	r_assign(+Rserve, +VarName, +Value) is det.
 %
 %	Assign a value to variable VarName   in  Rserve. Value follows a
 %	generic transformation of Prolog values into R values:
 %
 %	  $ list :
+%	  A list is translated into an R array of elements of the same
+%	  type.  The initial type is determined by the first element.
+%	  If subsequent elements to not fit the type, the type is
+%	  promoted.  Currently defined promotions are:
+%	    - Integers are promoted to doubles.
+%	  $ boolean :
+%	  The Prolog atoms `true` and `false` are mapped to R booleans.
 %	  $ integer :
+%	  Prolog integers in the range -2147483648..2147483647 are
+%	  mapped to R integers.
 %	  $ float :
+%	  Prolog floats are mapped to R doubles.
+%	  $ atom :
+%	  Atoms other than `true` and `false` are mapped to strings.
+%	  $ string :
+%	  A Prolog string is always mapped to an R string. The interface
+%	  assumes UTF-8 encoding for R. See the `encoding` setting in
+%	  the Rserve config file.
 
 %%	r_eval(+Rserve, +Command, -Value) is det.
 %
 %	Send Command to Rserve and translate  the resulting R expression
-%	into a Prolog representation.
+%	into a Prolog representation. The transformation from R
+%	expressions to Prolog data is defined as follows:
+%
+%	  $ TRUE or FALSE :
+%	  The R booleans are mapped to the Prolog atoms `true` and
+%	  `false`.
+%	  $ integer :
+%	  R integers are mapped to Prolog integers.
+%	  $ double :
+%	  R doubles are mapped to Prolog floats.
+%	  $ string :
+%	  R strings are mapped to Prolog strings. The interface
+%	  assumes UTF-8 encoding for R. See the `encoding` setting in
+%	  the Rserve config file.
 
 %%	r_read_file(+RServe, +FileName, -Content:string) is det.
 %
