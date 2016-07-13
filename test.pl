@@ -1,4 +1,43 @@
 :- use_module(rserve).
+:- debug(r).
+
+%%	rserve:r_open_hook(+Alias, -Connection)
+%
+%	Manage a dynamic binding to R.
+
+:- multifile rserve:r_open_hook/2.
+
+rserve:r_open_hook($, R) :-
+	nb_current('R', R), !.
+rserve:r_open_hook($, R) :-
+	r_open(R,
+	       [ host("/tmp/R-socket-janw"),
+		 port(-1)
+	       ]),
+	debug(r, 'Created ~p', [R]),
+	r_eval(R, "options(device=svg(filename=\"image%04d.svg\"))", X),
+	debug(r, 'Devices: ~p', [X]),
+	nb_setval('Rimage', 1),
+	nb_setval('R', R), !.
+
+svg_files(List) :-
+	nb_current('R', _),
+	r_eval($, "dev.cur()", [L]), L > 1, !,
+	repeat, r_eval($, "dev.off()", [1]), !,
+	fetch_images(List).
+svg_files([]).
+
+fetch_images(Files) :-
+	nb_getval('Rimage', N),
+	format(string(Name), "image~|~`0t~d~4+.svg", N),
+	(   catch(r_read_file($, Name, File), E,
+		  (print_message(warning, E), fail))
+	->  Files = [File|Rest],
+	    N2 is N+1,
+	    nb_setval('Rimage', N2),
+	    fetch_images(Rest)
+	;   Files = []
+	).
 
 r :-
 	r_open(R,
@@ -41,3 +80,4 @@ svg(Data) :-
 	r_eval(r, "svg(\"x.svg\")", _),
 	r_eval(r, "plot(a)", _),
 	r_eval(r, "dev.off()", _).
+
