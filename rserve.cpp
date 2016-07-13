@@ -328,6 +328,29 @@ rok(int status)
     throw RError(status);
 }
 
+
+/* get_string() gets a C++ string from a Prolog term.  As R does not handle
+ * strings with nul-bytes, we need to check for that.
+ */
+
+static void
+get_string(const PlTerm &t, std::string &str)
+{ char *s;
+  size_t len;
+
+  if ( PL_get_nchars(t, &len, &s,
+		     CVT_ATOM|CVT_STRING|CVT_NUMBER|CVT_EXCEPTION|REP_UTF8) )
+  { if ( strlen(s) == len )
+    { str.assign(s, len);
+      return;
+    }
+    throw PlDomainError("nul_terminated_string", t);
+  }
+
+  PlException().cppThrow();
+}
+
+
 typedef enum dtype
 { D_UNKNOWN = 0,
   D_INTEGER,
