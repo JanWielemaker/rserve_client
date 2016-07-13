@@ -7,7 +7,11 @@ cp(In, Out) :-
 	r_close(R).
 
 r :-
-	r_open(R, [alias(r)]),
+	r_open(R,
+	       [ alias(r),
+		 host("/tmp/R-socket-janw"),
+		 port(-1)
+	       ]),
 	assertion(R==r).
 
 mean(List, Mean) :-
