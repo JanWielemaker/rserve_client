@@ -315,7 +315,7 @@ public:
   RError(int status) :
     PlException(PlCompound("error",
 			   PlTermv(PlCompound("r_error",
-					      PlTermv((long)status)),
+					      PlTermv(PlTerm((long)status))),
 				   PlTerm())))
   {
   }
