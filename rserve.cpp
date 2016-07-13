@@ -353,21 +353,11 @@ get_string(const PlTerm &t, std::string &str)
 
 typedef enum dtype
 { D_UNKNOWN = 0,
+  D_BOOLEAN,
   D_INTEGER,
   D_DOUBLE,
   D_STRING
 } dtype;
-
-
-static void
-set_type(const PlTerm &t, dtype *type, dtype to)
-{ if ( to >= *type )
-  { *type = to;
-    return;
-  }
-
-  throw PlTypeError("Rdata", t);
-}
 
 
 class PlRExp
@@ -391,7 +381,11 @@ public:
   promote(dtype t)
   { if ( t > type )
     { switch(t)
-      { case D_INTEGER:
+      { case D_BOOLEAN:
+	  sv.reserve(16);
+	  sv.append(sizeof(int), 0);
+	  break;
+	case D_INTEGER:
 	  iv.reserve(16);
 	  break;
         case D_DOUBLE:
@@ -412,6 +406,8 @@ public:
   }
 };
 
+static const PlAtom ATOM_false("false");
+static const PlAtom ATOM_true("true");
 
 static void
 list_to_rexp(const PlTerm &t, PlRExp *exp)
@@ -430,11 +426,31 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
 	  case PL_FLOAT:
 	    exp->promote(D_DOUBLE);
 	    goto case_d;
+	  case PL_ATOM:
+	  { atom_t a;
+
+	    if ( PL_get_atom(head, &a) &&
+		 (ATOM_true == a || ATOM_false == a) )
+	    { exp->promote(D_BOOLEAN);
+	      goto case_b;
+	    }
+	  }
+	  /*FALLTHROUGH*/
 	  case PL_STRING:
 	    exp->promote(D_STRING);
 	    goto case_s;
 	  break;
 	}
+      case D_BOOLEAN:
+      case_b:
+      { int i;
+
+	if ( PL_get_bool_ex(head, &i) )
+	{ exp->sv.push_back(i != 0);
+	  break;
+	}
+	PlException().cppThrow();	/* FIXME: Promote */
+      }
       case D_INTEGER:
       case_i:
       { int i;
@@ -465,16 +481,21 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
   }
 
   switch(exp->type)
-  { case D_INTEGER:
+  { case D_BOOLEAN:
+    { unsigned int *lenptr = (unsigned int*)exp->sv.data();
+      *lenptr = (unsigned int)(exp->sv.size()-sizeof(unsigned int));
+      exp->exp = new Rboolean((unsigned char*)exp->sv.data(), exp->sv.size());
+      break;
+    }
+    case D_INTEGER:
       exp->exp = new Rinteger(exp->iv.data(), exp->iv.size());
       break;
     case D_DOUBLE:
       exp->exp = new Rdouble(exp->dv.data(), exp->dv.size());
       break;
     case D_STRING:
-    { exp->sv.push_back(1);
-      Rmessage *msg = new Rmessage(XT_ARRAY_STR, exp->sv.data(), exp->sv.size());
-      exp->exp = new Rstrings(msg);
+    { exp->sv.push_back(1);		/* s1\000s2\000...sn\000\001 */
+      exp->exp = new Rstrings(exp->sv);
       break;
     }
   }
@@ -500,6 +521,29 @@ term_to_rexp(const PlTerm &t)
       exp->exp = new Rdouble(&f, 1);
       break;
     }
+    case PL_ATOM:
+    { atom_t a;
+
+      if ( PL_get_atom(t, &a) &&
+	   (ATOM_true == a || ATOM_false == a) )
+      { struct { unsigned int len; unsigned char data[1]; } b;
+	b.len = 1;
+        b.data[0] = (ATOM_true == a);
+	exp->exp = new Rboolean((unsigned char*)&b,
+				sizeof(unsigned int)+sizeof(unsigned char));
+	break;
+      }
+    }
+    /*FALLTHROUGH*/
+    case PL_STRING:
+    { std::string s;
+
+      get_string(t, s);
+      s.push_back(0);
+      s.push_back(1);
+      exp->exp = new Rstrings(s);
+      break;
+    }
   }
 
   return exp;
@@ -521,6 +565,19 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 
       for(Rsize_t i=0; i<len; i++)
       { if ( !PL_put_integer(h, ri->intAt(i)) ||
+	     !tail.append(h) )
+	  return FALSE;
+      }
+      return tail.close();
+    }
+    case XT_ARRAY_BOOL:
+    { Rboolean *rs = (Rboolean*)exp;
+      Rsize_t len = rs->length();
+      PlTail tail(t);
+      PlTerm h;
+
+      for(Rsize_t i=0; i<len; i++)
+      { if ( !PL_put_bool(h, rs->boolAt(i)) ||
 	     !tail.append(h) )
 	  return FALSE;
       }

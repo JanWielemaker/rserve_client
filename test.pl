@@ -8,6 +8,12 @@ r :-
 	       ]),
 	assertion(R==r).
 
+get_strings(X) :-
+	r_eval(r, "a<-c(\"aap\", \"noot\"); a", X).
+
+get_boolean(X) :-
+	r_eval(r, "a<-c(TRUE, FALSE, FALSE, TRUE); a", X).
+
 cp(In, Out) :-
 	r_assign(r, v, In),
 	r_eval(r, v, Out).
