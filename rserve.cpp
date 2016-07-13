@@ -355,6 +355,7 @@ typedef enum dtype
 { D_UNKNOWN = 0,
   D_INTEGER,
   D_DOUBLE,
+  D_STRING
 } dtype;
 
 
@@ -376,6 +377,7 @@ public:
   dtype type = D_UNKNOWN;
   std::vector<int> iv;
   std::vector<double> dv;
+  std::string sv;
 
   PlRExp()
   {
@@ -399,6 +401,10 @@ public:
 	      dv.push_back((double)iv[i]);
 	    iv.resize(0);
 	  }
+	  break;
+	case D_STRING:
+	  sv.reserve(16);
+					/* FIXME: Promote integers and doubles */
 	  break;
       }
       type = t;
@@ -424,6 +430,9 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
 	  case PL_FLOAT:
 	    exp->promote(D_DOUBLE);
 	    goto case_d;
+	  case PL_STRING:
+	    exp->promote(D_STRING);
+	    goto case_s;
 	  break;
 	}
       case D_INTEGER:
@@ -444,6 +453,14 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
       case_d:
 	exp->dv.push_back(head);
         break;
+      case D_STRING:
+      case_s:
+      { std::string s;
+	get_string(head, s);
+	exp->sv += s;
+	exp->sv.push_back(0);
+	break;
+      }
     }
   }
 
@@ -454,6 +471,12 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
     case D_DOUBLE:
       exp->exp = new Rdouble(exp->dv.data(), exp->dv.size());
       break;
+    case D_STRING:
+    { exp->sv.push_back(1);
+      Rmessage *msg = new Rmessage(XT_ARRAY_STR, exp->sv.data(), exp->sv.size());
+      exp->exp = new Rstrings(msg);
+      break;
+    }
   }
 }
 
