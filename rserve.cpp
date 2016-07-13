@@ -493,6 +493,20 @@ unify_exp(const PlTerm &t, const Rexp *exp)
       }
       return tail.close();
     }
+    case XT_ARRAY_STR:
+    { Rstrings *rs = (Rstrings*)exp;
+      Rsize_t len = rs->length();
+      PlTail tail(t);
+      PlTerm h;
+
+      for(Rsize_t i=0; i<len; i++)
+      { if ( !PL_put_variable(h) ||
+	     !PL_unify_chars(h, PL_STRING|REP_UTF8, -1, rs->stringAt(i)) ||
+	     !tail.append(h) )
+	  return FALSE;
+      }
+      return tail.close();
+    }
     case XT_VECTOR:
     { const Rexp *e;
       PlTail tail(t);
