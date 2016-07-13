@@ -46,6 +46,9 @@
 	  ]).
 :- use_foreign_library(rserve).
 
+:- multifile
+	r_open_hook/2.			% +Name, -Reference
+
 /** <module> SWI-Prolog Rserver client
 */
 
@@ -129,3 +132,12 @@
 %%	r_remove_file(+RServe, +FileName) is det.
 %
 %	Remove FileName from the server.
+
+%%	r_open_hook(+Alias, -Rserve) is semidet.
+%
+%	Hook that is used to translate Alias  into an R connection. This
+%	is called for R references if  the   argument  is  not an Rserve
+%	handle, nor an existing alias. The hook  may create R on demand.
+%	One of the use  cases  is   SWISH,  where  we  want thread-local
+%	references to R and we want to   create  the R connection on the
+%	first reference and destroy it as the query dies.

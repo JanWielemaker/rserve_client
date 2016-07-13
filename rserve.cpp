@@ -248,10 +248,10 @@ symbol_Rref(atom_t symbol)
 
 static int
 get_Rref(term_t t, Rref **erp, int warn=TRUE)
-{ atom_t a;
+{ atom_t a = NULL_ATOM;
 
   if ( PL_get_atom(t, &a) )
-  { for(int i=0; i<2; i++)
+  { for(int i=0; a && i<2; i++)
     { Rref *ref;
 
       if ( (ref=symbol_Rref(a)) )
@@ -263,7 +263,14 @@ get_Rref(term_t t, Rref **erp, int warn=TRUE)
 	}
       }
 
-      a = get_alias(a);
+      if ( !(a = get_alias(a)) )
+      { PlTerm r;
+	PlTermv av(PlTerm(t), r);
+
+	if ( !PlCall("rserve", "r_open_hook", av) ||
+	     !PL_get_atom(r, &a) )
+	  break;
+      }
     }
 
     throw PlExistenceError("Rserve", t);
