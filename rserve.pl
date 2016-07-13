@@ -35,9 +35,10 @@
 :- module(rserve,
 	  [ r_open/2,			% -RServe, +Options
 	    r_close/1,			% +RServe
-	    r_login/2,			% +RServe, +User, +Password
+	    r_login/3,			% +RServe, +User, +Password
 
 	    r_assign/3,			% +RServe, +Var, +Data
+	    r_eval/2,			% +RServe, +Command
 	    r_eval/3,			% +RServe, +Command, -Result
 
 	    r_read_file/3,		% +Result, +FileName, -String

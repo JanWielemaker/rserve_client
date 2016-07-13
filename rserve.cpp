@@ -731,17 +731,35 @@ PREDICATE(r_assign, 3)
 }
 
 
+PREDICATE(r_eval, 2)
+{ Rref *ref;
+  const char *command = A2;
+  int rc;
+  int status = 0;
+
+  get_Rref(A1, &ref);
+  ref->rc->eval(command, &status, 1);
+  if ( status == 0 )
+    return TRUE;
+  throw RError(status);
+}
+
+
 PREDICATE(r_eval, 3)
 { Rref *ref;
   const char *command = A2;
   int rc;
+  int status = 0;
 
   get_Rref(A1, &ref);
-  Rexp *result = ref->rc->eval(command);
-  rc = unify_exp(A3, result);
-  delete result;
+  Rexp *result = ref->rc->eval(command, &status);
+  if ( result )
+  { rc = unify_exp(A3, result);
+    delete result;
+    return rc;
+  }
 
-  return rc;
+  throw RError(status);
 }
 
 
