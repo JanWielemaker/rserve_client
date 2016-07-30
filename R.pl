@@ -62,6 +62,8 @@ set_graphics_device(R) :-
 
 send_images :-
 	svg_files(Images), !,
+	length(Images, Count),
+	debug(r, 'Got ~d images~n', [Count]),
 	svg_html(Images, HTMlString),
 	pengine_output(HTMlString).
 %	pengine_output(json{images: Images,
@@ -72,7 +74,8 @@ svg_files(List) :-
 	nb_current('R', _),
 	r_eval($, "dev.cur()", [L]), L > 1, !,
 	repeat, r_eval($, "dev.off()", [1]), !,
-	fetch_images(List).
+	fetch_images(List),
+	nb_setval('Rimage', 1).			% restarts from 1
 
 fetch_images(Files) :-
 	nb_getval('Rimage', N),
@@ -80,7 +83,8 @@ fetch_images(Files) :-
 	format(string(Name), "~w~|~`0t~d~3+.svg", [Base,N]),
 	debug(r, 'Trying ~p~n', [Name]),
 	(   catch(r_read_file($, Name, File), E, r_error_fail(E))
-	->  Files = [File|Rest],
+	->  debug(r, 'Got ~p~n', [Name]),
+	    Files = [File|Rest],
 	    N2 is N+1,
 	    nb_setval('Rimage', N2),
 	    fetch_images(Rest)
@@ -103,7 +107,7 @@ svg_html(Images) -->
 
 rplots([]) --> [].
 rplots([H|T]) -->
-	html(div(class('reactive-size'), \svg(H, []))),
+	html(div(class(['reactive-size', 'R', svg]), \svg(H, []))),
 	rplots(T).
 
 
