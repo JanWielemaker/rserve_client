@@ -43,22 +43,15 @@ rserve:r_open_hook($, R) :-
 	set_graphics_device(R),
 	nb_setval('R', R), !.
 
-:- if(false).
 set_graphics_device(R) :-
-	pengine_self(Me),
-	format(string(Cmd),
-	       "options(device=svg(filename=\"~w%03d.svg\"))", [Me]),
-	r_eval(R, Cmd, X),
-	debug(r, 'Devices: ~p', [X]),
-	nb_setval('Rimage_base', Me),
-	nb_setval('Rimage', 1).
-:- else.
-set_graphics_device(R) :-
-	r_eval(R, "options(device=svg)", X),
+	r_eval(R, "mysvg <- function() {
+                     svg(\"Rplot%03d.svg\")
+		     par(mar=c(4,4,1,1))
+                   }
+	           options(device=mysvg)", X),
 	debug(r, 'Devices: ~p', [X]),
 	nb_setval('Rimage_base', 'Rplot'),
 	nb_setval('Rimage', 1).
-:- endif.
 
 send_images :-
 	svg_files(Images), !,
