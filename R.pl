@@ -141,7 +141,7 @@ function updateSize() {
     }
   }
 
-  w = Math.max(w*0.85, 100);
+  w = Math.max(w*0.95, 100);
   if ( w < data.w0 ) {
     svg.width(w);
     svg.height(w = Math.max(w*data.h0/data.w0, w/4));
