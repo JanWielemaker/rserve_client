@@ -81,6 +81,10 @@ fetch_images(Files) :-
 	debug(r, 'Trying ~p~n', [Name]),
 	(   catch(r_read_file($, Name, File), E, r_error_fail(E))
 	->  Files = [File|Rest],
+	    (   debugging(r(plot))
+	    ->  save_plot(Name, File)
+	    ;	true
+	    ),
 	    N2 is N+1,
 	    nb_setval('Rimage', N2),
 	    fetch_images(Rest)
@@ -89,6 +93,12 @@ fetch_images(Files) :-
 
 r_error_fail(error(r_error(70),_)) :- !, fail.
 r_error_fail(Error) :- print_message(warning, Error), fail.
+
+save_plot(File, Data) :-
+	setup_call_cleanup(
+	    open(File, write, Out, [encoding(utf8)]),
+	    format(Out, '~s', [Data]),
+	    close(Out)).
 
 %%	svg_html(+Images, -HTMlString) is det.
 %
@@ -107,10 +117,13 @@ rplots([H|T]) -->
 	rplots(T).
 
 
-%svg(SVG, _Options) --> !, html([ \[SVG] ]).
 svg(SVG, _Options) -->
-	html([ \[SVG],
-	       \js_script({|javascript||
+	html(\[SVG]),
+%	pan_zoom,
+	"".
+
+pan_zoom -->
+	html(\js_script({|javascript||
 var svg  = node.node().find("svg");
 //svg.removeAttr("width height");		// trying to remove white space
 //svg.find("rect").first().remove();	// trying to remove white space
@@ -150,7 +163,6 @@ require(["svg-pan-zoom"], function(svgPanZoom) {
     maxZoom: 50
   });
 });
-		      |})
-	     ]).
+		      |})).
 
 
