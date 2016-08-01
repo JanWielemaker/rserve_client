@@ -42,10 +42,14 @@
 	    r_send_images/0,
 
 	    op(900,  fx, <-),
-	    op(900, xfx, <-)
+	    op(900, xfx, <-),
+	    op(400, yfx, $),
+	    op(100, yf,  [])
+
 	  ]).
 :- use_module(rserve).
 :- use_module(r_grammar).
+:- use_module(r_term).
 :- use_module(library(apply)).
 :- use_module(library(lists)).
 :- use_module(library(debug)).
@@ -58,17 +62,56 @@
 /** <module> R plugin for SWISH
 */
 
-Var <- Value :-
+Var <- Term :-
 	var(Var), !,
-	r_eval($, Value, Var),
+	phrase(r_expression(Term, Assignments), Command),
+	setup_call_cleanup(
+	    maplist(r_bind, Assignments),
+	    r_eval($, Command, Var),
+	    r_unbind(Assignments)),
 	r_send_images.
 Var <- Value :-
-	atom(Var), !,
-	r_assign($, Var, Value).
+	(   atom(Var),
+	    r_primitive_data(Value)
+	->  r_assign($, Var, Value)
+	;   <-(Var<-Value)
+	).
 
-<- Expression :-
-	r_eval($, Expression, _),
+<- Term :-
+	phrase(r_expression(Term, Assignments), Command),
+	setup_call_cleanup(
+	    maplist(r_bind, Assignments),
+	    r_eval($, Command, _),
+	    r_unbind(Assignments)),
 	r_send_images.
+
+r_bind(RVar=Value) :-
+	r_assign($, RVar, Value).
+
+%%	r_unbind(+Bindings)
+%
+%	Remove the created bindings from the R environment
+
+r_unbind([]) :- !.
+r_unbind(Bindings) :-
+	maplist(arg(1), Bindings, Vars),
+	phrase(r_remove(Vars), Command),
+	r_eval($, Command, _).
+
+r_remove(Vars) -->
+	"remove(c(", r_vars(Vars), "))".
+
+r_vars([H|T]) -->
+	atom(H),
+	(   {T==[]}
+	->  ""
+	;   ",",
+	    r_vars(T)
+	).
+
+r_primitive_data(Data) :-
+	compound(Data), !, fail.
+
 
 		 /*******************************
 		 *	  QUASI QUOTATION	*
