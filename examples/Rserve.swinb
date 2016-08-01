@@ -1,0 +1,54 @@
+<div class="notebook">
+
+<div class="nb-cell query">
+&lt;- plot(c(1,2,3)).
+</div>
+
+<div class="nb-cell query">
+&lt;- plot([1,2,3,4]).
+</div>
+
+<div class="nb-cell query">
+{|r||plot(c(1,2,3))|}.
+</div>
+
+<div class="nb-cell query">
+numlist(1, 100, Data),
+{|r(Data)||plot(Data)|}.
+</div>
+
+<div class="nb-cell query">
+A &lt;- 1:10.
+</div>
+
+<div class="nb-cell query">
+A &lt;- 1:10.
+</div>
+
+<div class="nb-cell query">
+A &lt;- {|r||1:10|}.
+</div>
+
+<div class="nb-cell query">
+numlist(1, 1 000 000, _L),
+time(A &lt;- mean(_L)).
+</div>
+
+<div class="nb-cell query">
+numlist(1, 1 000 000, _L),
+time(sum_list(_L, Sum)).
+</div>
+
+<div class="nb-cell query">
+A &lt;- {|r||try(eval(parse(text="a b&lt;-1")),silent=TRUE)|}.
+</div>
+
+<div class="nb-cell query">
+A &lt;- try(eval(parse(text="x&lt;-1\n#hello\na b&lt;-1\n#line 3")),silent=true).
+</div>
+
+<div class="nb-cell query">
+A &lt;- {|r||a b|}.
+</div>
+
+</div>
