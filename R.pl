@@ -78,11 +78,6 @@ r(_, [], [Last]) -->
 	\+ [_], !,
 	{ atom_codes(Last, Codes) }.
 
-r_tokens([]) --> [].
-r_tokens([H|T]) -->
-	r_token(H),
-	r_tokens(T).
-
 
 %	diff_to_atom(+Start, +End, -Atom)
 %

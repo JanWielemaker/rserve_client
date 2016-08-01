@@ -33,7 +33,8 @@
 */
 
 :- module(r_grammar,
-	  [ r_token//1
+	  [ r_tokens//1,		% -Tokens
+	    r_token//1			% -Token
 	  ]).
 :- use_module(library(dcg/basics)).
 :- use_module(library(lists)).
@@ -44,6 +45,11 @@
 @see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
 */
 
+r_tokens([]) --> [].
+r_tokens([H|T]) -->
+	r_token(H),
+	r_tokens(T).
+
 r_token(Token) -->
 	blanks,
 	token(Token).
@@ -53,6 +59,8 @@ token(Token) --> r_string(S),         !, {Token = string(S)}.
 token(Token) --> r_identifier(Id),    !, {identifier_token(Id, Token)}.
 token(Token) --> r_infix(Id),         !, {Token = infix(Id)}.
 token(Token) --> r_operator(Id),      !, {Token = op(Id)}.
+token(Token) --> r_punct(Id),         !, {Token = punct(Id)}.
+token(Token) --> r_comment(Id),       !, {Token = comment(Id)}.
 
 number_token(complex(I), complex(I)) :- !.
 number_token(N, number(N)) :- !.
@@ -65,7 +73,7 @@ r_number(Number) -->
 	->  { integer(N) -> Number = N; Number is integer(N) /*warning*/ }
 	;   "i"
 	->  { Number = complex(N) }
-	;   ""
+	;   { Number = N }
 	).
 
 r_basic_number(N) -->
@@ -284,3 +292,19 @@ r_operator('|')	 --> "|".
 r_operator(~)	 --> "~".
 r_operator($)	 --> "$".
 r_operator(:)	 --> ":".
+
+r_punct('(') --> "(".
+r_punct(')') --> ")".
+r_punct('{') --> "{".
+r_punct('}') --> "}".
+r_punct('[') --> "[".
+r_punct(']') --> "]".
+r_punct(',') --> ",".
+
+r_comment(String) -->
+	"#", string(Codes), eol, !,
+	{ string_codes(String, Codes) }.
+
+eol --> "\r".
+eol --> "\n".
+eol --> eos.
