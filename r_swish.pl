@@ -32,7 +32,7 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module('Rswish',
+:- module(r_swish,
 	  [ (<-)/2,
 	    (<-)/1,
 
@@ -43,7 +43,6 @@
 	    op(900, xfx, <-),
 	    op(400, yfx, $),
 	    op(100, yf,  [])
-
 	  ]).
 :- use_module(rserve).
 :- use_module(r_grammar).
