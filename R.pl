@@ -9,6 +9,8 @@
 :- use_module(library(pengines)).
 :- use_module(library(http/html_write)).
 :- use_module(library(http/js_write)).
+:- use_module(library(quasi_quotations)).
+:- use_module(library(dcg/basics)).
 
 /** <module> R plugin for SWISH
 */
@@ -24,6 +26,65 @@ Var <- Value :-
 <- Expression :-
 	r_eval($, Expression, _),
 	send_images.
+
+		 /*******************************
+		 *	  QUASI QUOTATION	*
+		 *******************************/
+
+:- quasi_quotation_syntax(r).
+
+%%	r(+Content, +Vars, +VarDict, -DOM) is det.
+%
+%	@see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
+
+r(Content, Vars, Dict, \Parts) :-
+	include(qq_var(Vars), Dict, QQDict),
+	phrase_from_quasi_quotation(
+	    js(QQDict, Parts),
+	    Content).
+
+qq_var(Vars, _=Var) :-
+	member(V, Vars),
+	V == Var, !.
+
+js(Dict, [Pre, Subst|More]) -->
+	here(Here0),
+	js_tokens(_),
+	here(Here1),
+	r_token(identifier(Name)),
+	{ memberchk(Name=Var, Dict), !,
+	  Subst = \js_expression(Var),
+	  diff_to_atom(Here0, Here1, Pre)
+	},
+	js(Dict, More).
+js(_, [Last]) -->
+	string(Codes),
+	\+ [_], !,
+	{ atom_codes(Last, Codes) }.
+
+js_tokens([]) --> [].
+js_tokens([H|T]) -->
+	r_token(H),
+	js_tokens(T).
+
+
+%	diff_to_atom(+Start, +End, -Atom)
+%
+%	True when Atom is an atom that represents the characters between
+%	Start and End, where End must be in the tail of the list Start.
+
+diff_to_atom(Start, End, Atom) :-
+	diff_list(Start, End, List),
+	atom_codes(Atom, List).
+
+diff_list(Start, End, List) :-
+	Start == End, !,
+	List = [].
+diff_list([H|Start], End, [H|List]) :-
+	diff_list(Start, End, List).
+
+here(Here, Here, Here).
+
 
 		 /*******************************
 		 *	       IMAGES		*
