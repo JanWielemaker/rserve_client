@@ -189,6 +189,7 @@ r_infix_op('!=', '!=', 700, xfx).
 r_infix_op(:,	 :,    100, xfx).	% range
 
 r_infix_op(<-,	 <-,   900, xfx).
+r_infix_op(=,	 =,    900, xfx).
 
 lr_pri(Pri, xfx, APri, APri) :- !, APri is Pri - 1.
 lr_pri(Pri, xfy, APri,  Pri) :- !, APri is Pri - 1.
