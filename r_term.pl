@@ -39,6 +39,7 @@
 	    op(100, yf,  [])
 	  ]).
 :- use_module(r_grammar).
+:- use_module(r_expand_dot).
 :- use_module(library(error)).
 :- use_module(library(dcg/basics)).
 
