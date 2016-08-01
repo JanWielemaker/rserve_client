@@ -1,10 +1,18 @@
 :- module('Rswish',
 	  [ (<-)/2,
 	    (<-)/1,
+	    r/4,			% Quasi quotation parser
+	    r_assign/3,			% +Connection, +VarName, +Value
+	    r_eval/3,			% +Connection, +Command, -Value
+	    r_send_images/0,
+
 	    op(900,  fx, <-),
 	    op(900, xfx, <-)
 	  ]).
 :- use_module(rserve).
+:- use_module(r_grammar).
+:- use_module(library(apply)).
+:- use_module(library(lists)).
 :- use_module(library(debug)).
 :- use_module(library(pengines)).
 :- use_module(library(http/html_write)).
@@ -18,14 +26,14 @@
 Var <- Value :-
 	var(Var), !,
 	r_eval($, Value, Var),
-	send_images.
+	r_send_images.
 Var <- Value :-
 	atom(Var), !,
 	r_assign($, Var, Value).
 
 <- Expression :-
 	r_eval($, Expression, _),
-	send_images.
+	r_send_images.
 
 		 /*******************************
 		 *	  QUASI QUOTATION	*
@@ -33,39 +41,47 @@ Var <- Value :-
 
 :- quasi_quotation_syntax(r).
 
-%%	r(+Content, +Vars, +VarDict, -DOM) is det.
+%%	r(+Content, +Vars, +VarDict, -Goal) is det.
 %
 %	@see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
 
-r(Content, Vars, Dict, \Parts) :-
+r(Content, Vars, Dict, (Assign,Eval,r_send_images)) :-
 	include(qq_var(Vars), Dict, QQDict),
 	phrase_from_quasi_quotation(
-	    js(QQDict, Parts),
-	    Content).
+	    r(QQDict, Assignments, Parts),
+	    Content),
+	atomics_to_string(Parts, EvalS),
+	Eval = r_eval($, EvalS, _),
+	mkconj(Assignments, Assign).
+
+mkconj([], true).
+mkconj([H], H) :- !.
+mkconj([H|T], (H,G)) :-
+	mkconj(T, G).
 
 qq_var(Vars, _=Var) :-
 	member(V, Vars),
 	V == Var, !.
 
-js(Dict, [Pre, Subst|More]) -->
+r(Dict, Assignments, [Pre|More]) -->
 	here(Here0),
-	js_tokens(_),
-	here(Here1),
+	r_tokens(_),
 	r_token(identifier(Name)),
+	here(Here1),
 	{ memberchk(Name=Var, Dict), !,
-	  Subst = \js_expression(Var),
+	  Assignments = [r_assign($, Name, Var)|AT],
 	  diff_to_atom(Here0, Here1, Pre)
 	},
-	js(Dict, More).
-js(_, [Last]) -->
+	r(Dict, AT, More).
+r(_, [], [Last]) -->
 	string(Codes),
 	\+ [_], !,
 	{ atom_codes(Last, Codes) }.
 
-js_tokens([]) --> [].
-js_tokens([H|T]) -->
+r_tokens([]) --> [].
+r_tokens([H|T]) -->
 	r_token(H),
-	js_tokens(T).
+	r_tokens(T).
 
 
 %	diff_to_atom(+Start, +End, -Atom)
@@ -114,15 +130,18 @@ set_graphics_device(R) :-
 	nb_setval('Rimage_base', 'Rplot'),
 	nb_setval('Rimage', 1).
 
-send_images :-
+%%	r_send_images is det.
+%
+%	Collect the images saved on the server and send them to SWISH
+%	using pengine_output/1.
+
+r_send_images :-
 	svg_files(Images), !,
 	length(Images, Count),
 	debug(r, 'Got ~d images~n', [Count]),
 	svg_html(Images, HTMlString),
 	pengine_output(HTMlString).
-%	pengine_output(json{images: Images,
-%			    format: "svg"}).
-send_images.
+r_send_images.
 
 svg_files(List) :-
 	nb_current('R', _),

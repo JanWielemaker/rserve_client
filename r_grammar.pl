@@ -44,11 +44,15 @@
 @see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
 */
 
-r_token(Token) --> r_number(N),         !, {number_token(N, Token)}.
-r_token(Token) --> r_string(S),         !, {Token = string(S)}.
-r_token(Token) --> r_identifier(Id),    !, {identifier_token(Id, Token)}.
-r_token(Token) --> r_infix(Id),         !, {Token = infix(Id)}.
-r_token(Token) --> r_operator(Id),      !, {Token = op(Id)}.
+r_token(Token) -->
+	blanks,
+	token(Token).
+
+token(Token) --> r_number(N),         !, {number_token(N, Token)}.
+token(Token) --> r_string(S),         !, {Token = string(S)}.
+token(Token) --> r_identifier(Id),    !, {identifier_token(Id, Token)}.
+token(Token) --> r_infix(Id),         !, {Token = infix(Id)}.
+token(Token) --> r_operator(Id),      !, {Token = op(Id)}.
 
 number_token(complex(I), complex(I)) :- !.
 number_token(N, number(N)) :- !.
