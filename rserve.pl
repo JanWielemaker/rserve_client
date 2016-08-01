@@ -44,6 +44,9 @@
 	    r_read_file/3,		% +Result, +FileName, -String
 	    r_remove_file/2		% +Result, +FileName
 	  ]).
+:- use_module(r_grammar).
+:- use_module(library(error)).
+
 :- use_foreign_library(rserve).
 
 :- multifile
@@ -101,6 +104,13 @@
 %	  A Prolog string is always mapped to an R string. The interface
 %	  assumes UTF-8 encoding for R. See the `encoding` setting in
 %	  the Rserve config file.
+
+r_assign(Rserve, VarName, Value) :-
+	r_identifier(VarName), !,
+	r_assign_(Rserve, VarName, Value).
+r_assign(_, VarName, _Value) :-
+	must_be(atom, VarName),
+	domain_error(r_variable_name, VarName).
 
 %%	r_eval(+Rserve, +Command, -Value) is det.
 %

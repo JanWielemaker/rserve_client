@@ -729,7 +729,7 @@ PREDICATE(r_close, 1)
 }
 
 
-PREDICATE(r_assign, 3)
+PREDICATE(r_assign_, 3)
 { Rref *ref;
   size_t len;
   const char *vname = A2;
