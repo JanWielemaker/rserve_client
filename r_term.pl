@@ -43,9 +43,38 @@
 :- use_module(library(error)).
 :- use_module(library(dcg/basics)).
 
+/** <module> Translate a Prolog term into an R expression
+
+This module deals with representing an R   expression  as a Prolog term.
+The non-terminal r_expression//2  translates  the   Prolog  term  into a
+string that can be sent to R.
+
+The            design            is              inspired             by
+[real](http://stoics.org.uk/~nicos/sware/real/) from Nicos Angelopoulos.
+*/
+
 %%	r_expression(+Term, -Assignments)//
 %
-%	Grammar that creates an R command from a Prolog term.
+%	Grammar that creates an R  command   from  a  Prolog term. Terms
+%	recognised:
+%
+%	  - R identifier atom
+%	  - The atoms `true` and `false` are mapped to TRUE and FALSE.
+%	  - A Prolog *string* is mapped to an R string. The server
+%	    should run in UTF-8 mode for exchange of Unicode data.
+%	  - A Prolog *number* is mapped to an R number.
+%	  - A Prolog *list* is added to Assignments.  These are used
+%	    to create a temporary R variable. The R command translation
+%	    contains the variable name
+%	  - =|Left$Right|= is translated as is.
+%	  - A term =|X[I]|= is translated as is.
+%	  - Known operators are passed as infix operators.  The
+%	    following operators are known: =|+, -, *, /, mod, '%%', ^,
+%	    >=, >, ==, <, <=, =<, \=, '!=', :, <-|=
+%	  - Compound terms are translated to function calls.
+%
+%	This library loads r_expand_dot.pl,  which   uses  the `.` infix
+%	operator to make =|a.b|= and =|a.b()|= valid syntax.
 %
 %	@arg Assignments is a list Name=Value for data assignments.
 
@@ -136,13 +165,16 @@ r_string_code(C) --> [C].
 
 %%	r_infix_op(Op, Rop, Priority, Associativity)
 %
-%	True if Op is the Prolog representation for the R operator Rop.
+%	True if Op is the Prolog representation for the R operator Rop.  The
+%	R gammar doesn't specify the ranking of the operators.  We use Prolog's
+%	rules for now.
 
 r_infix_op(+,	 +,    500, yfx).
 r_infix_op(-,	 -,    500, yfx).
 r_infix_op(*,	 *,    400, yfx).
 r_infix_op(/,	 /,    400, yfx).
 r_infix_op(mod,  '%%', 400, yfx).
+r_infix_op('%%', '%%', 400, yfx).
 r_infix_op(^,	 ^,    200, xfy).
 
 r_infix_op(>=,	 >=,   700, xfx).

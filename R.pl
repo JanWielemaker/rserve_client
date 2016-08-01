@@ -59,6 +59,40 @@
 :- use_module(library(dcg/basics)).
 
 /** <module> R plugin for SWISH
+
+This    module    make    R    available     to    SWISH    using    the
+[Rserve](https://rforge.net/Rserve/) R package. The   module  r_serve.pl
+implements a SWI-Prolog wrapper around the  Rserve C++ client to realise
+the communication with the R server.
+
+The      Prolog      view      at      R        is      inspired      by
+[real](http://stoics.org.uk/~nicos/sware/real/) from Nicos Angelopoulos.
+
+It consists of the following two predicates:
+
+  - Var <- Expression
+  Assign the result of evaluating the given R Expression to Var.  Var
+  can be a Prolog variable or an R expression.
+  - <- Expression
+  Evaluate expression, discarding the result.  This is typically used
+  with e.g. `plot()`. Note that console output from R is not accessible.
+  through Rserve.
+
+In addition, the _quasi quotation_ `r`   is defined. The quasi quotation
+takes Prolog variables as arguments  and   an  R  expression as content.
+Arguments (Prolog variable names) that  match   R  identifiers cause the
+temporary of an R variable with that name bound to the translated Prolog
+value. R quasi quotations can be used as   isolated goals, as well as as
+right-hand arguments to <-/2 and <-/1.  The   example  below calls the R
+plot() function on the given Prolog list.
+
+  ```
+  ?- numlist(1,10,Data),
+     {|r(Data)||plot(Data)|}.
+  ```
+
+Images created by the R session are transferred   as SVG and sent to the
+SWISH console using pengine_output/1.
 */
 
 Var <- Term :-
@@ -82,8 +116,14 @@ r_primitive_data(Data) :-
 	compound(Data), !, fail.
 
 <- Term :-
-	phrase(r_expression(Term, Assignments), Command), !, % Why?
-	r_execute(Assignments, Command, _).
+	(   var(Term)
+	->  instantiation_error(Var)
+	;   Term = r_execute(Assignments, Command, Var)
+	->  r_execute(Assignments, Command, Var)
+	;   phrase(r_expression(Term, Assignments), Command)
+	->  r_execute(Assignments, Command, _)
+	;   domain_error(r_expression, Term)
+	).
 
 %%	r_execute(+Assignments, +Command, -Result) is det.
 %
