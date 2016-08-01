@@ -37,9 +37,7 @@
 	    (<-)/1,
 
 	    r/4,			% Quasi quotation parser
-	    r_assign/3,			% +Connection, +VarName, +Value
-	    r_eval/3,			% +Connection, +Command, -Value
-	    r_send_images/0,
+	    r_execute/3,		% +Assignments, +Command, -Result
 
 	    op(900,  fx, <-),
 	    op(900, xfx, <-),
@@ -51,6 +49,7 @@
 :- use_module(r_grammar).
 :- use_module(r_term).
 :- use_module(library(apply)).
+:- use_module(library(error)).
 :- use_module(library(lists)).
 :- use_module(library(debug)).
 :- use_module(library(pengines)).
@@ -64,12 +63,14 @@
 
 Var <- Term :-
 	var(Var), !,
-	phrase(r_expression(Term, Assignments), Command),
-	setup_call_cleanup(
-	    maplist(r_bind, Assignments),
-	    r_eval($, Command, Var),
-	    r_unbind(Assignments)),
-	r_send_images.
+	(   var(Term)
+	->  Var = Term
+	;   Term = r_execute(Assignments, Command, Var)
+	->  r_execute(Assignments, Command, Var)
+	;   phrase(r_expression(Term, Assignments), Command)
+	->  r_execute(Assignments, Command, Var)
+	;   domain_error(r_expression, Term)
+	).
 Var <- Value :-
 	(   atom(Var),
 	    r_primitive_data(Value)
@@ -77,11 +78,26 @@ Var <- Value :-
 	;   <-(Var<-Value)
 	).
 
+r_primitive_data(Data) :-
+	compound(Data), !, fail.
+
 <- Term :-
-	phrase(r_expression(Term, Assignments), Command),
+	phrase(r_expression(Term, Assignments), Command), !, % Why?
+	r_execute(Assignments, Command, _).
+
+%%	r_execute(+Assignments, +Command, -Result) is det.
+%
+%	Execute the R command Command  after   binding  the variables in
+%	Assignments and unify the result with Result.
+%
+%	@arg Assignments is a list of Name=Value, where Name must be a
+%	valid R indentifier.
+%	@arg Command is a string holding the R command to execute
+
+r_execute(Assignments, Command, Result) :-
 	setup_call_cleanup(
 	    maplist(r_bind, Assignments),
-	    r_eval($, Command, _),
+	    r_eval($, Command, Result),
 	    r_unbind(Assignments)),
 	r_send_images.
 
@@ -99,7 +115,7 @@ r_unbind(Bindings) :-
 	r_eval($, Command, _).
 
 r_remove(Vars) -->
-	"remove(c(", r_vars(Vars), "))".
+	"remove(", r_vars(Vars), ")".
 
 r_vars([H|T]) -->
 	atom(H),
@@ -108,9 +124,6 @@ r_vars([H|T]) -->
 	;   ",",
 	    r_vars(T)
 	).
-
-r_primitive_data(Data) :-
-	compound(Data), !, fail.
 
 
 		 /*******************************
@@ -123,19 +136,12 @@ r_primitive_data(Data) :-
 %
 %	@see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
 
-r(Content, Vars, Dict, (Assign,Eval,r_send_images)) :-
+r(Content, Vars, Dict, r_execute(Assignments, Command, _Result)) :-
 	include(qq_var(Vars), Dict, QQDict),
 	phrase_from_quasi_quotation(
 	    r(QQDict, Assignments, Parts),
 	    Content),
-	atomics_to_string(Parts, EvalS),
-	Eval = r_eval($, EvalS, _),
-	mkconj(Assignments, Assign).
-
-mkconj([], true).
-mkconj([H], H) :- !.
-mkconj([H|T], (H,G)) :-
-	mkconj(T, G).
+	atomics_to_string(Parts, Command).
 
 qq_var(Vars, _=Var) :-
 	member(V, Vars),
@@ -147,7 +153,7 @@ r(Dict, Assignments, [Pre|More]) -->
 	r_token(identifier(Name)),
 	here(Here1),
 	{ memberchk(Name=Var, Dict), !,
-	  Assignments = [r_assign($, Name, Var)|AT],
+	  Assignments = [Name=Var|AT],
 	  diff_to_atom(Here0, Here1, Pre)
 	},
 	r(Dict, AT, More).
