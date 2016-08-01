@@ -136,9 +136,30 @@ r_primitive_data(Data) :-
 r_execute(Assignments, Command, Result) :-
 	setup_call_cleanup(
 	    maplist(r_bind, Assignments),
-	    r_eval($, Command, Result),
+	    r_eval_ex($, Command, Result),
 	    r_unbind(Assignments)),
 	r_send_images.
+
+r_eval_ex(Connection, Command, Result) :-
+	to_string(Command, CommandS),
+	phrase(r_expression(try(eval(parse(text=CommandS)),silent=true),[]),
+	       WrappedCommand),
+	r_eval(Connection, WrappedCommand, Result0),
+	r_check_error(Result0),
+	Result = Result0.
+
+to_string(Command, CommandS) :-
+	string(Command), !,
+	CommandS = Command.
+to_string(Command, CommandS) :-
+	string_codes(CommandS, Command).
+
+r_check_error([ErrorString]) :-
+	string(ErrorString),
+	sub_string(ErrorString, 0, _, _, "Error in parse(text = "),
+	split_string(ErrorString, "\n", "", [Error|Context]), !,
+	throw(error(r_error(Error, Context), _)).
+r_check_error(_).
 
 r_bind(RVar=Value) :-
 	r_assign($, RVar, Value).
