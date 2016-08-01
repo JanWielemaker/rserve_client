@@ -34,7 +34,8 @@
 
 :- module(r_grammar,
 	  [ r_tokens//1,		% -Tokens
-	    r_token//1			% -Token
+	    r_token//1,			% -Token
+	    r_identifier/1		% +Name
 	  ]).
 :- use_module(library(dcg/basics)).
 :- use_module(library(lists)).
@@ -45,10 +46,52 @@
 @see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
 */
 
+%%	r_tokens(-Tokens:list)// is nondet.
+%
+%	Get R tokens in a non-greedy fashion. Backtracking extracts more
+%	tokens from the input. See r_token/1 for getting a single token.
+
 r_tokens([]) --> [].
 r_tokens([H|T]) -->
 	r_token(H),
 	r_tokens(T).
+
+%%	r_identifier(+Atom) is semidet.
+%
+%	True if Atom is a valid R identifier name.
+
+r_identifier(Atom) :-
+	atom(Atom),
+	atom_codes(Atom, Codes),
+	phrase(r_token(identifier(Atom)), Codes), !.
+
+
+%%	r_token(-Token)// is semidet.
+%
+%	Get an R token from the input.  Defined tokens are:
+%
+%	  - number(FloatOrInt)
+%	  Used for numerical constants.
+%	  - complex(FloatOrInt)
+%	  Used for <number>i.
+%	  - string(String)
+%	  Used for quoted strings.
+%	  - identifier(Atom)
+%	  General identifier (includes function names)
+%	  - constant(Atom)
+%	  Reserved constants (e.g., =NULL=, =NA=, ...)
+%	  - logical(Boolean)
+%	  Used for =TRUE= and =FALSE=
+%	  - keyword(Atom)
+%	  Used for =if=, =else=, etc.
+%	  - infix(Atom)
+%	  Used for =|%...%|= infix operators
+%	  - op(Atom)
+%	  Used for +, -, *, etc.
+%	  - punct(Atom)
+%	  Used for the braces =|{[()]}|= and the comma (,)
+%	  - comment(String)
+%	  Used for # Comment lines.
 
 r_token(Token) -->
 	blanks,
