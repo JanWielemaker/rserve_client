@@ -151,3 +151,26 @@ r_assign(_, VarName, _Value) :-
 %	One of the use  cases  is   SWISH,  where  we  want thread-local
 %	references to R and we want to   create  the R connection on the
 %	first reference and destroy it as the query dies.
+
+		 /*******************************
+		 *	      MESSAGES		*
+		 *******************************/
+
+prolog:error_message(r_error(Code)) -->
+	{ r_error_code(Code, _Id, Message) },
+	[ 'Rserve: ~w'-[Message] ].
+
+% Sync with CERR_* as defined in Rconnection.h
+r_error_code( -1, connect_failed,    "Connect failed").
+r_error_code( -2, handshake_failed,  "Handshake failed").
+r_error_code( -3, invalid_id,	     "Invalid id").
+r_error_code( -4, protocol_not_supp, "Protocol not supported").
+r_error_code( -5, not_connected,     "Not connected").
+r_error_code( -7, peer_closed,	     "Peer closed connection").
+r_error_code( -8, malformed_packet,  "Malformed packed").
+r_error_code( -9, send_error,	     "Send error").
+r_error_code(-10, out_of_mem,	     "Out of memory").
+r_error_code(-11, not_supported,     "Not supported").
+r_error_code(-12, io_error,	     "I/O error").
+r_error_code(-20, auth_unsupported,  "Authentication not supported").
+
