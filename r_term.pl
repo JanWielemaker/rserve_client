@@ -87,8 +87,8 @@ r_expr(Var, _) -->
 	{ var(Var), !,
 	  instantiation_error(Var)
 	}.
-r_expr(true, _) --> "TRUE".
-r_expr(false, _) --> "FALSE".
+r_expr(true, _) --> !, "TRUE".
+r_expr(false, _) --> !, "FALSE".
 r_expr(Identifier, _) -->
 	{ atom(Identifier),
 	  r_identifier(Identifier)
