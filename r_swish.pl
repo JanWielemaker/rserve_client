@@ -116,7 +116,7 @@ r_primitive_data(Data) :-
 
 <- Term :-
 	(   var(Term)
-	->  instantiation_error(Var)
+	->  instantiation_error(Term)
 	;   Term = r_execute(Assignments, Command, Var)
 	->  r_execute(Assignments, Command, Var)
 	;   phrase(r_expression(Term, Assignments), Command)
