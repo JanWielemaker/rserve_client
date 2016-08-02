@@ -27,6 +27,9 @@ Running
       repeat, r_eval(r, 'dev.off()', X), X = [1], !.
     - Find files RplotXXX.svg
 
+  - https://www.stat.auckland.ac.nz/~paul/gridSVG/Potter%204716989_MSc_Thesis.pdf
+    Describes SVG images through various layers.
+
 ## SWISH integration
 
   - If A is approached
