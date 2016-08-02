@@ -263,15 +263,18 @@ r_send_images.
 
 svg_files(List) :-
 	nb_current('R', _),
-	r_eval($, "dev.cur()", [L]), L > 1, !,
-	repeat, r_eval($, "dev.off()", [1]), !,
-	fetch_images(List),
-	nb_setval('Rimage', 1).			% restarts from 1
+	(   r_eval($, "dev.cur()", [L]),
+	    L > 1
+	->  (   repeat,
+		r_eval($, "dev.off()", [1])
+	    ->  true
+	    ),
+	    fetch_images(1, List)
+	).
 
-fetch_images(Files) :-
-	nb_getval('Rimage', N),
+fetch_images(I, Files) :-
 	nb_getval('Rimage_base', Base),
-	format(string(Name), "~w~|~`0t~d~3+.svg", [Base,N]),
+	format(string(Name), "~w~|~`0t~d~3+.svg", [Base,I]),
 	debug(r, 'Trying ~p~n', [Name]),
 	(   catch(r_read_file($, Name, File), E, r_error_fail(E))
 	->  debug(r, 'Got ~p~n', [Name]),
@@ -280,9 +283,8 @@ fetch_images(Files) :-
 	    ->  save_plot(Name, File)
 	    ;	true
 	    ),
-	    N2 is N+1,
-	    nb_setval('Rimage', N2),
-	    fetch_images(Rest)
+	    I2 is I+1,
+	    fetch_images(I2, Rest)
 	;   Files = []
 	).
 
