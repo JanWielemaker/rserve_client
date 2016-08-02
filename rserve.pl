@@ -40,11 +40,13 @@
 	    r_assign/3,			% +RServe, +Var, +Data
 	    r_eval/2,			% +RServe, +Command
 	    r_eval/3,			% +RServe, +Command, -Result
+	    r_eval_ex/3,		% +RServe, +Command, -Result
 
 	    r_read_file/3,		% +Result, +FileName, -String
 	    r_remove_file/2		% +Result, +FileName
 	  ]).
 :- use_module(r_grammar).
+:- use_module(r_term).
 :- use_module(library(error)).
 
 :- use_foreign_library(rserve).
@@ -129,6 +131,37 @@ r_assign(_, VarName, _Value) :-
 %	  R strings are mapped to Prolog strings. The interface
 %	  assumes UTF-8 encoding for R. See the `encoding` setting in
 %	  the Rserve config file.
+%
+%	@see r_eval_ex/3 to map R exceptions  to Prolog. By default, the
+%	non-interactive R server terminates on an  exception and thus if
+%	r_eval/3 causes an R exception R  terminates and Prolog receives
+%	an I/O error.
+
+%%	r_eval_ex(+Rserve, +Command, -Result) is det.
+%
+%	As r_eval/3, but captures R exceptions and translates these into
+%	Prolog exceptions.
+
+r_eval_ex(Connection, Command, Result) :-
+	to_string(Command, CommandS),
+	phrase(r_expression(try(eval(parse(text=CommandS)),silent=true),[]),
+	       WrappedCommand),
+	r_eval(Connection, WrappedCommand, Result0),
+	r_check_error(Result0),
+	Result = Result0.
+
+to_string(Command, CommandS) :-
+	string(Command), !,
+	CommandS = Command.
+to_string(Command, CommandS) :-
+	string_codes(CommandS, Command).
+
+r_check_error([ErrorString]) :-
+	string(ErrorString),
+	sub_string(ErrorString, 0, _, _, "Error in parse(text = "),
+	split_string(ErrorString, "\n", "", [Error|Context]), !,
+	throw(error(r_error(Error, Context), _)).
+r_check_error(_).
 
 %%	r_eval(+Rserve, +Command) is det.
 %
