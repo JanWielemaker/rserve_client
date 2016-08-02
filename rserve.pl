@@ -191,7 +191,17 @@ r_check_error(_).
 
 prolog:error_message(r_error(Code)) -->
 	{ r_error_code(Code, _Id, Message) },
-	[ 'Rserve: ~w'-[Message] ].
+	[ 'R: ~w'-[Message] ].
+prolog:error_message(r_error(Main, Context)) -->
+	[ 'R: ~w'-[Main] ],
+	error_lines(Context).
+
+error_lines([]) --> [].
+error_lines([""]) --> !.
+error_lines([H|T]) -->
+	[ nl, 'R: ~w'-[H] ],
+	error_lines(T).
+
 
 % Sync with CERR_* as defined in Rconnection.h
 r_error_code( -1, connect_failed,    "Connect failed").
