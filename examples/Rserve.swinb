@@ -14,7 +14,7 @@
 
 <div class="nb-cell query">
 numlist(1, 100, Data),
-{|r(Data)||plot(Data)|}.
+{|r(Data)||ggplot(aes(Data))|}.
 </div>
 
 <div class="nb-cell query">
@@ -49,6 +49,21 @@ A &lt;- try(eval(parse(text="x&lt;-1\n#hello\na b&lt;-1\n#line 3")),silent=true)
 
 <div class="nb-cell query">
 A &lt;- {|r||a b|}.
+</div>
+
+<div class="nb-cell query">
+&lt;- svg(),
+{|r||qplot(mpg, data=mtcars, geom="density", fill=gear, alpha=I(.5), main="Distribution of Gas Milage", xlab="Miles Per Gallon", ylab="Density")|},
+D &lt;- dev.cur().
+</div>
+
+<div class="nb-cell query">
+&lt;- {|r||qplot(mpg, data=mtcars, geom="density", fill=gear, alpha=I(.5), main="Distribution of Gas Milage", xlab="Miles Per Gallon", ylab="Density")|}.
+</div>
+
+<div class="nb-cell program" data-background="true">
+:- &lt;- library("ggplot2").
+:- use_rendering(table).
 </div>
 
 </div>
