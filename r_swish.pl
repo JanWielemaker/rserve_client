@@ -120,12 +120,17 @@ r_primitive_data(Data) :-
 	;   Term = r_execute(Assignments, Command, _Var)
 	->  format(string(Capture), "capture.output(~s)", [Command]),
 	    r_execute(Assignments, Capture, Output),
-	    maplist(writeln, Output)
+	    emit_r_output(Output)
 	;   phrase(r_expression(capture.output(Term), Assignments), Command)
 	->  r_execute(Assignments, Command, Output),
-	    maplist(writeln, Output)
+	    emit_r_output(Output)
 	;   domain_error(r_expression, Term)
 	).
+
+emit_r_output([]) :- !.
+emit_r_output(List) :-
+	atomics_to_string(List, "\n", String),
+	writeln(String).
 
 %%	r_execute(+Assignments, +Command, -Result) is det.
 %
