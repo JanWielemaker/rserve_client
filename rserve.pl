@@ -158,7 +158,7 @@ to_string(Command, CommandS) :-
 
 r_check_error([ErrorString]) :-
 	string(ErrorString),
-	sub_string(ErrorString, 0, _, _, "Error in parse(text = "),
+	sub_string(ErrorString, 0, _, _, "Error in "),
 	split_string(ErrorString, "\n", "", [Error|Context]), !,
 	throw(error(r_error(Error, Context), _)).
 r_check_error(_).
