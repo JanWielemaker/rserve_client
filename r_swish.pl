@@ -112,6 +112,8 @@ Var <- Value :-
 	).
 
 r_primitive_data(Data) :-
+	is_list(Data), !.
+r_primitive_data(Data) :-
 	compound(Data), !, fail.
 
 <- Term :-
