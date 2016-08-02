@@ -558,7 +558,8 @@ term_to_rexp(const PlTerm &t)
 
 
 static const PlAtom ATOM_null("null");
-static const PlAtom ATOM_clos("<R-closure>");
+static const PlAtom ATOM_clos("<XT_CLOS>");
+static const PlAtom ATOM_unknown("<XT_UNKNOWN>");
 
 static int
 unify_exp(const PlTerm &t, const Rexp *exp)
@@ -631,8 +632,19 @@ unify_exp(const PlTerm &t, const Rexp *exp)
       }
       return tail.close();
     }
+    case XT_STR:
+    { Rstring *rs = (Rstring*)exp;
+      return PL_unify_chars(t, PL_STRING|REP_UTF8, -1, rs->string());
+    }
+    case XT_SYMNAME:
+    { Rstring *rs = (Rstring*)exp;
+      return PL_unify_chars(t, PL_ATOM|REP_UTF8, -1, rs->string());
+    }
     case XT_CLOS:
     { return PL_unify_atom(t, ATOM_clos.handle);
+    }
+    case XT_UNKNOWN:
+    { return PL_unify_atom(t, ATOM_unknown.handle);
     }
     default:
       Sdprintf("Rexp of type %d\n", exp->type);
