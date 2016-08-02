@@ -37,6 +37,7 @@
 #define PL_ARITY_AS_SIZE
 
 #include <iostream>
+#include <math.h>
 #include <assert.h>
 #include <mutex>
 #include <vector>
@@ -597,11 +598,28 @@ unify_exp(const PlTerm &t, const Rexp *exp)
       Rsize_t len = rd->length();
       PlTail tail(t);
       PlTerm h;
+      int allints = TRUE;
 
       for(Rsize_t i=0; i<len; i++)
-      { if ( !PL_put_float(h, rd->doubleAt(i)) ||
-	     !tail.append(h) )
-	  return FALSE;
+      { double f = rd->doubleAt(i);
+	if ( nearbyint(f) != f )
+	{ allints = FALSE;
+	  break;
+	}
+      }
+
+      if ( allints )
+      { for(Rsize_t i=0; i<len; i++)
+	{ if ( !PL_put_int64(h, (int64_t)rd->doubleAt(i)) ||
+	       !tail.append(h) )
+	    return FALSE;
+	}
+      } else
+      { for(Rsize_t i=0; i<len; i++)
+	{ if ( !PL_put_float(h, rd->doubleAt(i)) ||
+	       !tail.append(h) )
+	    return FALSE;
+	}
       }
       return tail.close();
     }
