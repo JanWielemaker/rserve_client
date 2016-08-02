@@ -335,6 +335,7 @@ r_operator('|')	 --> "|".
 r_operator(~)	 --> "~".
 r_operator($)	 --> "$".
 r_operator(:)	 --> ":".
+r_operator(=)	 --> "=".
 
 r_punct('(') --> "(".
 r_punct(')') --> ")".
