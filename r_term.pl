@@ -79,9 +79,9 @@ The            design            is              inspired             by
 %	@arg Assignments is a list Name=Value for data assignments.
 
 r_expression(Term, Assignments) -->
-	{ Ctx = r{tmpvar:0, assignments:[], priority:1200} },
+	{ Ctx = r{v:v{tmpvar:0, assignments:[]}, priority:1200} },
 	r_expr(Term, Ctx),
-	{ Assignments = Ctx.assignments }.
+	{ Assignments = Ctx.v.assignments }.
 
 r_expr(Var, _) -->
 	{ var(Var), !,
@@ -144,11 +144,12 @@ r_arguments([H|T], Ctx) -->
 	).
 
 assignment(Data, Ctx, Var) :-
-	_{tmpvar:I, assignments:A0} :< Ctx,
+	Vars = Ctx.v,
+	_{tmpvar:I, assignments:A0} :< Vars,
 	atom_concat('Rserve.tmp.', I, Var),
 	I2 is I + 1,
-	b_set_dict(tmpvar, Ctx, I2),
-	b_set_dict(assignments, Ctx, [Var=Data|A0]).
+	b_set_dict(tmpvar, Vars, I2),
+	b_set_dict(assignments, Vars, [Var=Data|A0]).
 
 %%	r_string_codes(+Codes)//
 %
