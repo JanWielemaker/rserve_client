@@ -38,19 +38,15 @@ socket at the following address:
 With SWISH and is interface  installed   in  adjacent directories, i.e.,
 below the same parent, R may be linked to SWISH doing
 
-    ```{prolog}
     :- use_module('../swipl-rserve-client/r_swish').
     :- use_module('../swipl-rserve-client/r_sandbox').
-    ```
 
 Alternatively, Rserve can be run without sandbox  and R may be linked to
 SWISH doing the statements  below,  which   requires  users  to login to
 SWISH.
 
-    ```{prolog}
     :- use_module('../swipl-rserve-client/r_swish').
     :- use_module(lib/authenticate).
-    ```
 
 ## Status
 
@@ -61,3 +57,25 @@ This is just a proof of context. Obviously missing functionality:
     versions of Rserve to deal with R I/O.
   - Make it easy to create an R data frame from the solutions of
     a predicate.
+  - Turn this into a SWI-Prolog pack.
+
+## Related projects
+
+This           interface           is             inspired            by
+[Real](http://stoics.org.uk/~nicos/sware/real/)        by         [Nicos
+Angelopoulos](http://stoics.org.uk/~nicos/).  Main differences:
+
+  - _Real_ is _embedded_ in SWI-Prolog.  This is more productive for
+    local deployment as the communication is faster and R has access
+    to its default environment.  Thus, R can open graphical windows
+    and can read and write files.  _Real_ is also much more mature,
+    notably in the supporting a much larger part of the R syntax
+    from Prolog.
+
+  - _Rserve_ runs typically using a different user in a different
+    environment.  The R environment cannot easily communicate with
+    your local development environment.  When used in a (web)
+    server environment this comes with several advantages.  We can
+    seriously sandbox the R executable, each query in SWISH gets
+    its own R instance and information can thus nog leak between
+    queries and users.
