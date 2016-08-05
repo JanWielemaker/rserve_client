@@ -56,6 +56,7 @@
 :- use_module(library(http/js_write)).
 :- use_module(library(quasi_quotations)).
 :- use_module(library(dcg/basics)).
+:- use_module(library(settings)).
 
 /** <module> R plugin for SWISH
 
@@ -94,6 +95,15 @@ Images created by the R session are transferred   as SVG and sent to the
 SWISH console using pengine_output/1.
 */
 
+:- setting(rserve:socket, atom, '/home/rserve/socket',
+	   "Unix domain socket for connecting to Rserve").
+:- setting(rserve:host,	atom, localhost,
+	   "Host for connecting to Rserve").
+:- setting(rserve:port,	integer, 6311,
+	   "Port for connecting to Rserve").
+
+%%	Var <- Value
+
 Var <- Term :-
 	var(Var), !,
 	(   var(Term)
@@ -115,6 +125,8 @@ r_primitive_data(Data) :-
 	is_list(Data), !.
 r_primitive_data(Data) :-
 	compound(Data), !, fail.
+
+%%	<- Value
 
 <- Term :-
 	(   var(Term)
@@ -236,13 +248,34 @@ here(Here, Here, Here).
 
 :- multifile rserve:r_open_hook/2.
 
+%%	rserve:r_open_hook(+Name, -R)
+%
+%	Called for lazy creation of the  R   session.  The default is to
+%	connect using a Unix domain socket.
+
 rserve:r_open_hook($, R) :-
 	nb_current('R', R), !.
 rserve:r_open_hook($, R) :-
+	setting(rserve:socket, Socket),
+	Socket \== '',
+	access_file(Socket, exist), !,
+	debug(r(connect), 'Connecting to ~p ...', [Socket]),
 	r_open(R,
-	       [ host("/tmp/R-socket-janw"),
+	       [ host(Socket),
 		 port(-1)
 	       ]),
+	r_setup(R).
+rserve:r_open_hook($, R) :-
+	setting(rserve:port, Port),
+	setting(rserve:host, Host),
+	debug(r(connect), 'Connecting to ~p ...', [Host:Port]),
+	r_open(R,
+	       [ host(Host),
+		 port(Port)
+	       ]),
+	r_setup(R).
+
+r_setup(R) :-
 	thread_at_exit(r_close(R)),
 	debug(r, 'Created ~p', [R]),
 	set_graphics_device(R),
