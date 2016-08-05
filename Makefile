@@ -16,7 +16,7 @@ clean:
 $(CXXCLIENT):
 	git submodule update --init
 
-$(CXXCLIENT)/configure:
+$(CXXCLIENT)/configure: $(CXXCLIENT)
 	cd $(CXXCLIENT) && autoheader && autoconf
 
 $(CXXCLIENT)/Makefile: $(CXXCLIENT)/configure $(CXXCLIENT)/Makefile.in
