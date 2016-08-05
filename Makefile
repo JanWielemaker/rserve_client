@@ -1,9 +1,26 @@
-CPPFLAGS=-cc-options,-std=c++11
+CPPFLAGS=-std=c++11 -fPIC
+SWICPPFLAGS=-cc-options,-std=c++11
 COFLAGS=-O2 -gdwarf-2 -g3
 LIBS=-ldl -lcrypt -lm
+CXXCLIENT=Rserve/src/client/cxx
+CXXDEPS= $(CXXCLIENT)/configure
+RCONN=$(CXXCLIENT)/Rconnection.o
+RSINCLUDE=-IRserve/src -IRserve/src/include -I$(CXXCLIENT)
 
-rserve.so: rserve.cpp
-	swipl-ld $(CPPFLAGS) $(COFLAGS) -shared -o $@ rserve.cpp cxx/Rconnection.o $(LIBS)
+rserve.so: rserve.cpp $(RCONN)
+	swipl-ld $(SWICPPFLAGS) $(COFLAGS) $(RSINCLUDE) -shared -o $@ rserve.cpp $(RCONN) $(LIBS)
 
 clean:
-	rm -f rserve.so *~
+	rm -f rserve.so $(RCONN) *~
+
+$(CXXCLIENT):
+	git submodule update --init
+
+$(CXXCLIENT)/configure:
+	cd $(CXXCLIENT) && autoheader && autoconf
+
+$(CXXCLIENT)/Makefile: $(CXXCLIENT)/configure $(CXXCLIENT)/Makefile.in
+	cd $(CXXCLIENT) && ./configure
+
+$(RCONN): $(CXXCLIENT)/Makefile
+	$(CXX) -c $(CPPFLAGS) $(COFLAGS) $(RSINCLUDE) -o $@ $(CXXCLIENT)/Rconnection.cc

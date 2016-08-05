@@ -41,8 +41,8 @@
 #include <assert.h>
 #include <mutex>
 #include <vector>
-#include "cxx/sisocks.h"
-#include "cxx/Rconnection.h"
+#include <sisocks.h>
+#include "Rserve/src/client/cxx/Rconnection.h"
 #include <SWI-Stream.h>
 #include <SWI-cpp.h>
 
