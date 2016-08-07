@@ -33,19 +33,41 @@
 */
 
 :- module(r_data,
-	  [ r_data_frame/3		% +Rvar, +Columns, :Goal
+	  [ r_data_frame/3,		% +Rvar, +Columns, :Goal
+	    r_data_frame_from_rows/2,	% +RVar, +Rows
+
+	    r_data_frame_to_dicts/2,	% +Rvar, -Dicts
+	    r_data_frame_to_rows/3,	% +RVar, +Functor, -Rows
+
+	    r_data_frame_colnames/2,	% +RVars, -ColNames
+	    r_data_frame_rownames/2	% +RVars, -RowNames
 	  ]).
 :- use_module(r_swish).
 :- use_module(library(apply)).
 :- use_module(library(error)).
+:- use_module(library(pairs)).
 
 :- meta_predicate
 	r_data_frame(+, +, 0).
 
+/** <module> R data frame handling
+
+This library provides predicates  for  creating   and  fetching  R  data
+frames. R data frames are typically  2-dimensional arrays where the data
+is organised in _columns_. In  Prolog,   data  is typically organised in
+_rows_ (or _records_).
+*/
+
 %%	r_data_frame(+Rvar, +Columns, :Goal) is det.
 %
 %	Create an R data.frame from the solutions of Goal. The resulting
-%	data frame is bound to the R variable Rvar.
+%	data frame is bound to the R variable Rvar.  For example:
+%
+%	```
+%	?- r_data_frame(movieyear,
+%		        [movie=Name, year=Year],
+%			movie(Name, Year)).
+%	```
 %
 %	@arg	Rvar is the name of the R output variable
 %	@arg	Columns is a list Name=Var
@@ -55,10 +77,86 @@ r_data_frame(RVar, ColSpec, Goal) :-
 	maplist(arg(1), ColSpec, Names),
 	maplist(arg(2), ColSpec, Vars),
 	Templ =.. [v|Vars],
-	functor(Templ, _, NCols),
 	findall(Templ, Goal, Rows),
+	r_data_frame_from_rows(RVar, Rows),
+	colnames(RVar) <- Names.
+
+%%	r_data_frame_to_dicts(+DataFrame, -Dicts) is det.
+%
+%	Translate a DataFrame into a  list   of  dicts,  where each dict
+%	represents a _row_. The  keys  of   the  dicts  are fetched from
+%	`colnames(DataFrame)`.  For example:
+%
+%	```
+%	?- r_data_frame_to_dicts(mtcars, Dicts).
+%	Dicts = [ row{am:1, carb:4, cyl:6, disp:160.0, drat:3.9,
+%		      gear:4, hp:110, mpg:21.0, qsec:16.46, vs:0,
+%		      wt:2.62},
+%		  ...
+%		]
+%	```
+
+r_data_frame_to_dicts(DataFrame, Dicts) :-
+	Cols <- DataFrame,
+	ColNameStrings <- colnames(DataFrame),
+	maplist(atom_string, ColNames, ColNameStrings),
+	pairs_keys_values(Pairs, ColNames, _),
+	dict_pairs(Templ, _, Pairs),
+	maplist(dict_cols(Templ, Dicts), ColNames, Cols).
+
+dict_cols(Templ, Dicts, Name, Col) :-
+	maplist(fill_col(Templ, Name), Col, Dicts).
+
+fill_col(_, Name, Value, Dict) :-
+	nonvar(Dict), !,
+	get_dict(Name, Dict, Value).
+fill_col(Templ, Name, Value, Dict) :-
+	copy_term(Templ, Dict),
+	get_dict(Name, Dict, Value).
+
+%%	r_data_frame_to_rows(+DataFrame, +Functor, -Rows) is det.
+%
+%	Translate a 2-dimensional R dataframe into   a  list of compound
+%	terms, each representing a  row.  The   functor  of  each row is
+%	Functor.  For example:
+%
+%	```
+%	?- r_data_frame_to_rows(mtcars, car, Rows).
+%	Rows = [ car(21.0, 6, 160.0, 110, 3.9, 2.62, 16.46, 0, 1, 4, 4),
+%	         ...
+%	       ].
+%	```
+
+r_data_frame_to_rows(DataFrame, Functor, Rows) :-
+	Cols <- DataFrame,
+	length(Cols, Arity),
+	term_cols(Cols, 1, Arity, Functor, Rows).
+
+term_cols([], _, _, _, _).
+term_cols([Col|Cols], I, Arity, Functor, Rows) :-
+	maplist(term_col(I, Arity, Functor), Col, Rows),
+	I2 is I+1,
+	term_cols(Cols, I2, Arity, Functor, Rows).
+
+term_col(1, Arity, Functor, Value, Term) :- !,
+	functor(Term, Functor, Arity),
+	arg(1, Term, Value).
+term_col(I, _, _, Value, Term) :-
+	arg(I, Term, Value).
+
+%%	r_data_frame_from_rows(+DataFrame, +Rows) is det.
+%
+%	Assign the R variable DataFrame the content   of Rows. Rows is a
+%	list of compound terms.
+
+r_data_frame_from_rows(DataFrame, Rows) :-
+	must_be(atom, DataFrame),
+	must_be(list, Rows),
+	Rows = [Row1|_],
+	functor(Row1, _, NCols),
 	col_data(1, NCols, Rows, ColData),
-	create_r_dataframe(RVar, Names, ColData).
+	compound_name_arguments(Term, 'data.frame', ColData),
+	DataFrame <- Term.
 
 col_data(I, NCols, Rows, [ColI|ColR]) :-
 	I =< NCols, !,
@@ -67,7 +165,18 @@ col_data(I, NCols, Rows, [ColI|ColR]) :-
 	col_data(I2, NCols, Rows, ColR).
 col_data(_, _, _, []).
 
-create_r_dataframe(RVar, Names, ColData) :-
-	compound_name_arguments(Term, 'data.frame', ColData),
-	RVar <- Term,
-	colnames(RVar) <- Names.
+%%	r_data_frame_colnames(+DataFrame, -ColNames:list(atom)) is det.
+%
+%	ColNames are the column names for DataFrame as a list of atoms.
+
+r_data_frame_colnames(DataFrame, ColNames) :-
+	ColNameStrings <- colnames(DataFrame),
+	maplist(atom_string, ColNames, ColNameStrings).
+
+%%	r_data_frame_rownames(+DataFrame, -RowNames:list(atom)) is det.
+%
+%	RowNames are the row names for DataFrame as a list of atoms.
+
+r_data_frame_rownames(DataFrame, RowNames) :-
+	RowNameStrings <- rownames(DataFrame),
+	maplist(atom_string, RowNames, RowNameStrings).
