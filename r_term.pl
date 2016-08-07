@@ -79,7 +79,7 @@ The            design            is              inspired             by
 %	@arg Assignments is a list Name=Value for data assignments.
 
 r_expression(Term, Assignments) -->
-	{ Ctx = r{v:v{tmpvar:0, assignments:[]}, priority:1200} },
+	{ Ctx = r{v:v{tmpvar:0, assignments:[]}, priority:999} },
 	r_expr(Term, Ctx),
 	{ Assignments = Ctx.v.assignments }.
 
@@ -110,13 +110,13 @@ r_expr(List, Ctx) -->
 r_expr(Left$Right, Ctx) --> !,
 	r_expr(Left, Ctx), "$", r_expr(Right, Ctx).
 r_expr(Array[Index], Ctx) --> !,
-	r_expr(Array, Ctx), "[", r_expr(Index, Ctx.put(priority, 1200)), "]".
+	r_expr(Array, Ctx), "[", r_expr(Index, Ctx.put(priority, 999)), "]".
 r_expr(Compound, Ctx) -->
 	{ compound(Compound),
 	  compound_name_arguments(Compound, Name, Args),
 	  r_identifier(Name), !
 	},
-	atom(Name), "(", r_arguments(Args, Ctx), ")".
+	atom(Name), "(", r_arguments(Args, Ctx.put(priority, 999)), ")".
 r_expr(Compound, Ctx) -->
 	{ compound(Compound),
 	  compound_name_arguments(Compound, Name, [Left,Right]),
