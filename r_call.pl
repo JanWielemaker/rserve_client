@@ -359,7 +359,7 @@ r_send_images.
 r_send_images(Images) :-
 	r_display_images(Images), !.
 r_send_images(Images) :-
-	print_message(informational, r_images(Images)).
+	print_message(warning, r_images(Images)).
 
 %%	r_display_images(+Images:list)
 %
@@ -430,5 +430,5 @@ save_plot(File, Data) :-
 
 prolog:message(r_images(Images)) -->
 	{ length(Images, Count) },
-	[ 'R sent ~d images files.'-[Count], nl ],
+	[ 'Rserve sent ~d images files.'-[Count], nl ],
 	[ 'Define r_call:r_display_images/1 to display them.'-[] ].
