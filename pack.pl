@@ -1,4 +1,4 @@
-name('swipl-rserve-client').
+name('rserve_client').
 version('0.1').
 title('R Rserve client').
 keywords(['R', 'statistics', 'chart', 'plot']).
