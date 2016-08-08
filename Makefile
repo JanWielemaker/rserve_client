@@ -34,7 +34,7 @@ install::
 $(CXXCLIENT):
 	@if [ -d .git ]; then \
 	  git submodule update --init; \
-	else; \
+	else \
 	  git clone -b janw https://github.com/JanWielemaker/Rserve; \
 	fi
 
