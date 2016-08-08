@@ -52,9 +52,6 @@
 :- use_module(library(error)).
 :- use_module(library(lists)).
 :- use_module(library(debug)).
-:- use_module(library(pengines)).
-:- use_module(library(http/html_write)).
-:- use_module(library(http/js_write)).
 :- use_module(library(quasi_quotations)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(settings)).
@@ -400,7 +397,7 @@ r_fetch_images(I, Images) :-
 	debug(r, 'Trying ~p~n', [Name]),
 	(   catch(r_read_file($, Name, Content), E, r_error_fail(E))
 	->  debug(r, 'Got ~p~n', [Name]),
-	    Image =.. [ext,Content],
+	    Image =.. [Ext,Content],
 	    Images = [Image|Rest],
 	    (   debugging(r(plot))
 	    ->  save_plot(Name, Content)
