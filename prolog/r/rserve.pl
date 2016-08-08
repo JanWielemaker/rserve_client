@@ -49,7 +49,7 @@
 :- use_module(r_term).
 :- use_module(library(error)).
 
-:- use_foreign_library(rserve).
+:- use_foreign_library(foreign(rserve)).
 
 :- multifile
 	r_open_hook/2.			% +Name, -Reference

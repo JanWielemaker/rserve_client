@@ -12,12 +12,11 @@
 
 ## Compiling this package
 
-With SWI-Prolog and its  `swipl-ld`   utility  installed,  compiling the
-interface done using
+This library is configured as a  SWI-Prolog   pack.  It can be installed
+using the command below. The installation requires `git`, `autoconf` and
+the common C++ build tools.
 
-  ```{shell}
-  make
-  ```
+    ?- pack_install('swipl-rserve-client').
 
 This is tested on Ubuntu (14.04 and 16.04).  It performs these steps:
 
@@ -53,7 +52,6 @@ This is just a proof of context. Obviously missing functionality:
   - Cover more _Prolog term --> R_ translations, following Real.
   - Support OOB (Out Of Band) communication introduced in recent
     versions of Rserve to deal with R I/O.
-  - Turn this into a SWI-Prolog pack.
 
 ## Related projects
 
