@@ -32,7 +32,11 @@ check::
 install::
 
 $(CXXCLIENT):
-	git submodule update --init
+	@if [ -d .git ]; then \
+	  git submodule update --init; \
+	else; \
+	  git clone -b janw https://github.com/JanWielemaker/Rserve; \
+	fi
 
 $(CXXCLIENT)/configure: $(CXXCLIENT)
 	cd $(CXXCLIENT) && autoheader && autoconf
