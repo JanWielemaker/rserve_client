@@ -45,7 +45,7 @@
 	    op(400, yfx, $),
 	    op(100, yf,  [])
 	  ]).
-:- use_module(rserve).
+:- use_module(r_serve).
 :- use_module(r_grammar).
 :- use_module(r_term).
 :- use_module(library(apply)).
