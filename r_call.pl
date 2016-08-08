@@ -32,7 +32,7 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(r_swish,
+:- module(r_call,
 	  [ (<-)/2,			% ?Var, +Expression
 	    (<-)/1,			% +Expression
 					% Internal predicates

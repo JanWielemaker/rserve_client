@@ -42,7 +42,7 @@
 	    r_data_frame_colnames/2,	% +RVars, -ColNames
 	    r_data_frame_rownames/2	% +RVars, -RowNames
 	  ]).
-:- use_module(r_swish).
+:- use_module(r_call).
 :- use_module(library(apply)).
 :- use_module(library(error)).
 :- use_module(library(pairs)).
