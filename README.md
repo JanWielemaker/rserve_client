@@ -16,7 +16,7 @@ This library is configured as a  SWI-Prolog   pack.  It can be installed
 using the command below. The installation requires `git`, `autoconf` and
 the common C++ build tools.
 
-    ?- pack_install('swipl-rserve-client').
+    ?- pack_install('rserve_client').
 
 This is tested on Ubuntu (14.04 and 16.04).  It performs these steps:
 
@@ -37,13 +37,33 @@ Unix-domain socket at the following address:
 With SWISH and is interface  installed   in  adjacent directories, i.e.,
 below the same parent, R may be linked to SWISH doing
 
-    user:file_search_path(rserve, '../swipl-rserve-client').
     :- use_module(lib/r_swish).
 
 Now, R is not safe. You should either run Rserve in a tight OS container
-and load `rserve(r_sandbox)` or  run  SWISH   in  authenticated  mode by
+and load `library(r/r_sandbox)` or run SWISH   in  authenticated mode by
 loading `lib/authenticate.pl.`
 
+## Libraries provided
+
+User libraries
+
+  - library(r/r_call)
+  Defines basic user API to R
+  - library(r/r_data)
+  Utilities to create and fetch R data frames
+
+Implementation libraries
+
+  - library(r/r_expand_dot)
+  Allow for dots in atoms and functors without quotes.
+  - library(r/r_grammar)
+  R Parser utilities (lexer) that support R quasi quotations
+  - library(r/r_term)
+  DCG non-terminal to translate a term into an R command string
+  - library(r/r_sandbox)
+  Declare the R API sandbox-safe
+  - library(r/r_serve)
+  Low-level level communication library
 
 ## Status
 
