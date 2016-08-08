@@ -60,8 +60,9 @@
 :- use_module(library(settings)).
 
 :- multifile
-	r_init_session/1.		% +Session
-
+	r_init_session/1,		% +Session
+	r_console/2,			% +Type, ?Term
+	r_display_images/1.		% +Images
 
 /** <module> R plugin for SWISH
 
@@ -151,10 +152,18 @@ r_primitive_data(Data) :-
 	;   domain_error(r_expression, Term)
 	).
 
-emit_r_output([]) :- !.
-emit_r_output(List) :-
-	atomics_to_string(List, "\n", String),
-	writeln(String).
+emit_r_output(Output) :-
+	r_console(stdout, Output), !.
+emit_r_output(Output) :-
+	maplist(writeln, Output).
+
+%%	r_console(+Stream, ?Term)
+%
+%	Hook console interaction. Currently only used   for <-/1 to emit
+%	the captured output. In this cases,  Stream is `stdout` and Term
+%	is a list of strings, each representing   a  line of output. The
+%	list can be empty. If the  hook fails, maplist(writeln, Term) is
+%	called to write the output to `current_output`.
 
 %%	r_execute(+Assignments, +Command, -Result) is det.
 %
@@ -341,14 +350,39 @@ r_setup_graphics(R, svg) :-
 %	using pengine_output/1.
 
 r_send_images :-
-	svg_files(Images), !,
+	r_images(Images), !,
 	length(Images, Count),
 	debug(r, 'Got ~d images~n', [Count]),
-	svg_html(Images, HTMlString),
-	pengine_output(HTMlString).
+	r_send_images(Images).
 r_send_images.
 
-svg_files(List) :-
+r_send_images(Images) :-
+	r_display_images(Images), !.
+r_send_images(Images) :-
+	print_message(informational, r_images(Images)).
+
+%%	r_display_images(+Images:list)
+%
+%	Hook to display images.
+%
+%	@arg Images is a list of images.  Each image is of the form
+%	Format(String), where Format is the file extension.  Currently
+%	only uses `svg`.  If not defined, print_message/2 is called
+%	with the term r_images(Images).
+
+%%	r_images(-Images:list) is semidet.
+%
+%	Collect saved image files from Rserve.  This assumes that
+%
+%	  1. The R connection is in the global variable =R=.  If
+%	  there is no connection, there are no images.
+%	  2. There are only images if there is a current device.
+%	  This is closed using =|dev.off()|=.
+%	  3. Images are called <base>%03d.<ext>, where <base> is
+%	  in the global variable =Rimage_base= and <ext> in
+%	  =Rimage_ext=.
+
+r_images(List) :-
 	nb_current('R', _),
 	(   r_eval($, "dev.cur()", [L]),
 	    L > 1
@@ -356,24 +390,25 @@ svg_files(List) :-
 		r_eval($, "dev.off()", [1])
 	    ->  true
 	    ),
-	    fetch_images(1, List)
+	    r_fetch_images(1, List)
 	).
 
-fetch_images(I, Files) :-
+r_fetch_images(I, Images) :-
 	nb_getval('Rimage_base', Base),
 	nb_getval('Rimage_ext', Ext),
 	format(string(Name), "~w~|~`0t~d~3+.~w", [Base,I,Ext]),
 	debug(r, 'Trying ~p~n', [Name]),
-	(   catch(r_read_file($, Name, File), E, r_error_fail(E))
+	(   catch(r_read_file($, Name, Content), E, r_error_fail(E))
 	->  debug(r, 'Got ~p~n', [Name]),
-	    Files = [File|Rest],
+	    Image =.. [ext,Content],
+	    Images = [Image|Rest],
 	    (   debugging(r(plot))
-	    ->  save_plot(Name, File)
+	    ->  save_plot(Name, Content)
 	    ;	true
 	    ),
 	    I2 is I+1,
-	    fetch_images(I2, Rest)
-	;   Files = []
+	    r_fetch_images(I2, Rest)
+	;   Images = []
 	).
 
 r_error_fail(error(r_error(70),_)) :- !, fail.
@@ -381,73 +416,19 @@ r_error_fail(Error) :- print_message(warning, Error), fail.
 
 save_plot(File, Data) :-
 	setup_call_cleanup(
-	    open(File, write, Out, [encoding(utf8)]),
+	    open(File, write, Out, [type(binary)]),
 	    format(Out, '~s', [Data]),
 	    close(Out)).
 
-%%	svg_html(+Images, -HTMlString) is det.
-%
-%	Turn a list of SVG images into an HTML string.
 
-svg_html(Images, HTMlString) :-
-	phrase(svg_html(Images), Tokens),
-	with_output_to(string(HTMlString), print_html(Tokens)).
+		 /*******************************
+		 *	      MESSAGES		*
+		 *******************************/
 
-svg_html(Images) -->
-	html(div(class('Rplots'), \rplots(Images))).
+:- multifile
+	prolog:message//1.
 
-rplots([]) --> [].
-rplots([H|T]) -->
-	html(div(class(['reactive-size', 'R', svg]), \svg(H, []))),
-	rplots(T).
-
-
-svg(SVG, _Options) -->
-	html(\[SVG]),
-	pan_zoom,
-	"".
-
-pan_zoom -->
-	html(\js_script({|javascript||
-var svg  = node.node().find("svg");
-//svg.removeAttr("width height");		// trying to remove white space
-//svg.find("rect").first().remove();	// trying to remove white space
-var data = { w0: svg.width(),
-	     h0: svg.height()
-	   };
-var pan;
-
-function updateSize() {
-  var w = svg.closest("div.Rplots").innerWidth();
-  console.log(w);
-
-  function reactive() {
-    if ( !data.reactive ) {
-      var div = svg.closest("div.reactive-size");
-      data.reactive = true;
-      div.on("reactive-resize", updateSize);
-    }
-  }
-
-  w = Math.max(w*0.95, 100);
-  if ( w < data.w0 ) {
-    svg.width(w);
-    svg.height(w = Math.max(w*data.h0/data.w0, w/4));
-    reactive();
-    if ( pan ) {
-      pan.resize();
-      pan.fit();
-      pan.center();
-    }
-  }
-}
-
-require(["svg-pan-zoom"], function(svgPanZoom) {
-  updateSize()
-  pan = svgPanZoom(svg[0], {
-    maxZoom: 50
-  });
-});
-		      |})).
-
-
+prolog:message(r_images(Images)) -->
+	{ length(Images, Count) },
+	[ 'R sent ~d images files.'-[Count], nl ],
+	[ 'Define r_call:r_display_images/1 to display them.'-[] ].
