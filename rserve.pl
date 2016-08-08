@@ -54,7 +54,9 @@
 :- multifile
 	r_open_hook/2.			% +Name, -Reference
 
-/** <module> SWI-Prolog Rserver client
+/** <module> SWI-Prolog Rserve client
+
+This module provides a low-level binding to the Rserve R server process.
 */
 
 %%	r_open(-RServe, +Options) is det.

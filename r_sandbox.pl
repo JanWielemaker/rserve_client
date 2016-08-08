@@ -34,9 +34,16 @@
 
 :- module(r_sandbox, []).
 
+/** <module> Declare the R API safe
+
+This module declares the R API   as  safe according to library(sandbox).
+Note that *you should only use this if   Rserve is running in a properly
+isolated sandbox*.
+*/
+
 :- multifile
 	sandbox:safe_primitive/1.
 
-sandbox:safe_primitive(r_swish: <-(_)).
-sandbox:safe_primitive(r_swish: <-(_,_)).
-sandbox:safe_primitive(r_swish: r_execute(_,_,_)).
+sandbox:safe_primitive(r_call: <-(_)).
+sandbox:safe_primitive(r_call: <-(_,_)).
+sandbox:safe_primitive(r_call: r_execute(_,_,_)).
