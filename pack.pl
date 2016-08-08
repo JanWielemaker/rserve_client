@@ -1,5 +1,5 @@
 name('rserve_client').
-version('0.3').
+version('0.4').
 title('R Rserve client').
 keywords(['R', 'statistics', 'chart', 'plot']).
 author( 'Jan Wielemaker', 'J.Wielemaker@cwi.nl' ).
