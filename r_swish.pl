@@ -33,11 +33,12 @@
 */
 
 :- module(r_swish,
-	  [ (<-)/2,
-	    (<-)/1,
-
+	  [ (<-)/2,			% ?Var, +Expression
+	    (<-)/1,			% +Expression
+					% Internal predicates
 	    r/4,			% Quasi quotation parser
 	    r_execute/3,		% +Assignments, +Command, -Result
+	    r_setup_graphics/2,		% +Rconn, +Format
 
 	    op(900,  fx, <-),
 	    op(900, xfx, <-),
@@ -58,6 +59,10 @@
 :- use_module(library(dcg/basics)).
 :- use_module(library(settings)).
 
+:- multifile
+	r_init_session/1.		% +Session
+
+
 /** <module> R plugin for SWISH
 
 This    module    make    R    available     to    SWISH    using    the
@@ -74,9 +79,8 @@ It consists of the following two predicates:
   Assign the result of evaluating the given R Expression to Var.  Var
   can be a Prolog variable or an R expression.
   - <- Expression
-  Evaluate expression, discarding the result.  This is typically used
-  with e.g. `plot()`. Note that console output from R is not accessible.
-  through Rserve.
+  Evaluate expression, discarding the result.  Possible console output
+  is captured.
 
 In addition, the _quasi quotation_ `r`   is defined. The quasi quotation
 takes Prolog variables as arguments  and   an  R  expression as content.
@@ -102,23 +106,26 @@ SWISH console using pengine_output/1.
 :- setting(rserve:port,	integer, 6311,
 	   "Port for connecting to Rserve").
 
-%%	Var <- Value
+%%	(Var <- Expression) is det.
+%
+%	Assign the result of evaluating the   given R Expression to Var.
+%	Var can be a Prolog variable or an R expression.
 
-Var <- Term :-
+Var <- Expression :-
 	var(Var), !,
-	(   var(Term)
-	->  Var = Term
-	;   Term = r_execute(Assignments, Command, Var)
+	(   var(Expression)
+	->  instantiation_error(Expression)
+	;   Expression = r_execute(Assignments, Command, Var)
 	->  r_execute(Assignments, Command, Var)
-	;   phrase(r_expression(Term, Assignments), Command)
+	;   phrase(r_expression(Expression, Assignments), Command)
 	->  r_execute(Assignments, Command, Var)
-	;   domain_error(r_expression, Term)
+	;   domain_error(r_expression, Expression)
 	).
-Var <- Value :-
+Var <- Expression :-
 	(   atom(Var),
-	    r_primitive_data(Value)
-	->  r_assign($, Var, Value)
-	;   <-(Var<-Value)
+	    r_primitive_data(Expression)
+	->  r_assign($, Var, Expression)
+	;   <-(Var<-Expression)
 	).
 
 r_primitive_data(Data) :-
@@ -126,7 +133,10 @@ r_primitive_data(Data) :-
 r_primitive_data(Data) :-
 	compound(Data), !, fail.
 
-%%	<- Value
+%%	(<- Expression) is det.
+%
+%	Evaluate Expression, discarding  the   result.  Possible console
+%	output is captured using the R function `capture.output`.
 
 <- Term :-
 	(   var(Term)
@@ -195,7 +205,14 @@ r_vars([H|T]) -->
 
 %%	r(+Content, +Vars, +VarDict, -Goal) is det.
 %
+%	Parse {|r(Arg,...||R-code|} into a the   expression  below. This
+%	expression may be passed to  <-/2  and   <-/1  as  well  as used
+%	directly as a goal, calling r_execute/3.
+%
+%	    r_execute(Assignments, Command, Result)
+%
 %	@see https://cran.r-project.org/doc/manuals/r-release/R-lang.html#Parser
+%	@tbd Verify more of the R syntax.
 
 r(Content, Vars, Dict, r_execute(Assignments, Command, _Result)) :-
 	include(qq_var(Vars), Dict, QQDict),
@@ -224,7 +241,7 @@ r(_, [], [Last]) -->
 	{ atom_codes(Last, Codes) }.
 
 
-%	diff_to_atom(+Start, +End, -Atom)
+%%	diff_to_atom(+Start, +End, -Atom)
 %
 %	True when Atom is an atom that represents the characters between
 %	Start and End, where End must be in the tail of the list Start.
@@ -250,8 +267,19 @@ here(Here, Here, Here).
 
 %%	rserve:r_open_hook(+Name, -R)
 %
-%	Called for lazy creation of the  R   session.  The default is to
-%	connect using a Unix domain socket.
+%	Called for lazy creation to the   Rserve server. Connections are
+%	per-thread. The destination depends on settings:
+%
+%	  $ Unix domain socket :
+%	  If `rserve:socket` is defined and not empty, it is taken
+%	  as the path to a Unix domain socket to connect to.
+%	  $ TCP/IP socket :
+%	  Else, if `rserve:port` and `rserve:host` is defined, we
+%	  connect to the indicated host and port.
+%
+%	After  the  connection  is  established,   the  session  can  be
+%	configured using the hook r_init_session/1.   The  default calls
+%	r_setup_graphics/2 to setup graphics output to send SVG files.
 
 rserve:r_open_hook($, R) :-
 	nb_current('R', R), !.
@@ -278,10 +306,26 @@ rserve:r_open_hook($, R) :-
 r_setup(R) :-
 	thread_at_exit(r_close(R)),
 	debug(r, 'Created ~p', [R]),
-	set_graphics_device(R),
+	call_init_session(R),
 	nb_setval('R', R), !.
 
-set_graphics_device(R) :-
+call_init_session(R) :-
+	r_init_session(R), !.
+call_init_session(R) :-
+	r_setup_graphics(R, svg).
+
+%%	r_init_session(+RConn) is semidet.
+%
+%	Multifile hook that is called after the Rserve server has handed
+%	us a new connection. If this   hook fails, r_setup_graphics/2 is
+%	called to setup capturing graphics as SVG files.
+
+%%	r_setup_graphics(+Rconn, +Format) is det.
+%
+%	Setup graphics output  using  files.   Currently  only  supports
+%	`Format = svg`.
+
+r_setup_graphics(R, svg) :-
 	r_eval(R, "mysvg <- function() {
                      svg(\"Rplot%03d.svg\")
 		     par(mar=c(4,4,1,1))
@@ -289,7 +333,7 @@ set_graphics_device(R) :-
 	           options(device=mysvg)", X),
 	debug(r, 'Devices: ~p', [X]),
 	nb_setval('Rimage_base', 'Rplot'),
-	nb_setval('Rimage', 1).
+	nb_setval('Rimage_ext', 'svg').
 
 %%	r_send_images is det.
 %
@@ -317,7 +361,8 @@ svg_files(List) :-
 
 fetch_images(I, Files) :-
 	nb_getval('Rimage_base', Base),
-	format(string(Name), "~w~|~`0t~d~3+.svg", [Base,I]),
+	nb_getval('Rimage_ext', Ext),
+	format(string(Name), "~w~|~`0t~d~3+.~w", [Base,I,Ext]),
 	debug(r, 'Trying ~p~n', [Name]),
 	(   catch(r_read_file($, Name, File), E, r_error_fail(E))
 	->  debug(r, 'Got ~p~n', [Name]),
