@@ -27,26 +27,24 @@ This is tested on Ubuntu (14.04 and 16.04).  It performs these steps:
 
 ## Using this package
 
-This     package     is     primarily       intended      to     support
-[SWISH](http://swish.swi-prolog.org).    We    created      a    [Docker
-container](https://github.com/JanWielemaker/rserve-sandbox)  that   runs
-Rserve in a sandbox. The container   exposes  Rserve using a Unix-domain
-socket at the following address:
+This  package  is  primarily  intended  for    accessing   R  in  server
+environments such as [SWISH](http://swish.swi-prolog.org).  We created a
+[Docker container](https://github.com/JanWielemaker/rserve-sandbox) that
+runs  Rserve  in  a  sandbox.  The  container  exposes  Rserve  using  a
+Unix-domain socket at the following address:
 
     /home/rserve/socket
 
 With SWISH and is interface  installed   in  adjacent directories, i.e.,
 below the same parent, R may be linked to SWISH doing
 
-    :- use_module('../swipl-rserve-client/r_swish').
-    :- use_module('../swipl-rserve-client/r_sandbox').
+    user:file_search_path(rserve, '../swipl-rserve-client').
+    :- use_module(lib/r_swish).
 
-Alternatively, Rserve can be run without sandbox  and R may be linked to
-SWISH doing the statements  below,  which   requires  users  to login to
-SWISH.
+Now, R is not safe. You should either run Rserve in a tight OS container
+and load `rserve(r_sandbox)` or  run  SWISH   in  authenticated  mode by
+loading `lib/authenticate.pl.`
 
-    :- use_module('../swipl-rserve-client/r_swish').
-    :- use_module(lib/authenticate).
 
 ## Status
 
@@ -55,8 +53,6 @@ This is just a proof of context. Obviously missing functionality:
   - Cover more _Prolog term --> R_ translations, following Real.
   - Support OOB (Out Of Band) communication introduced in recent
     versions of Rserve to deal with R I/O.
-  - Make it easy to create an R data frame from the solutions of
-    a predicate.
   - Turn this into a SWI-Prolog pack.
 
 ## Related projects
