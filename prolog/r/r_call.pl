@@ -381,12 +381,9 @@ r_send_images(Images) :-
 
 r_images(List) :-
 	nb_current('R', _),
-	(   r_eval($, "dev.cur()", [L]),
-	    L > 1
-	->  (   repeat,
-		r_eval($, "dev.off()", [1])
-	    ->  true
-	    ),
+	(   r_eval($, "names(dev.list())", Devices),
+	    Devices = ["svg"|_]
+	->  r_eval($, "dev.off()", _),
 	    r_fetch_images(1, List)
 	).
 
