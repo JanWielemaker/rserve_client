@@ -194,6 +194,11 @@ r_check_error(_).
 %	references to R and we want to   create  the R connection on the
 %	first reference and destroy it as the query dies.
 
+
+		 /*******************************
+		 *     SESSION MANAGEMENT	*
+		 *******************************/
+
 %%	r_detach(+Rserve, -Session) is det.
 %
 %	Detach a session to  be  resumed   later.  Session  is an opaque
@@ -213,6 +218,26 @@ r_detach(Rserve, Session) :-
 
 r_resume(Rserve, Session) :-
 	r_resume(Rserve, Session, _).
+
+
+		 /*******************************
+		 *	  SERVER CONTROL	*
+		 *******************************/
+
+%%	r_server_eval(+Rserve, +Command)
+%
+%	Evaluate Command in the main  server.   The  main server must be
+%	configured to allow for _control_ commands.
+
+%%	r_server_source(+Rserve, +FileName)
+%
+%	Process FileName on the main  server.   The  main server must be
+%	configured to allow for _control_ commands.
+
+%%	r_server_shutdown(+Rserve)
+%
+%	Cause the main server to shutdown. Note that the current session
+%	(Rserve) remains valid.
 
 
 		 /*******************************
