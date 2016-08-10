@@ -45,6 +45,9 @@
 	    r_read_file/3,		% +RServe, +FileName, -String
 	    r_remove_file/2,		% +RServe, +FileName
 
+	    r_detach/2,			% +Rserve, -Session
+	    r_resume/2,			% -Rserve, +Session
+
 	    r_server_eval/2,		% +Rserve, +Command
 	    r_server_source/2,		% +Rserve, +FileName
 	    r_server_shutdown/1		% +Rserve
@@ -190,6 +193,27 @@ r_check_error(_).
 %	One of the use  cases  is   SWISH,  where  we  want thread-local
 %	references to R and we want to   create  the R connection on the
 %	first reference and destroy it as the query dies.
+
+%%	r_detach(+Rserve, -Session) is det.
+%
+%	Detach a session to  be  resumed   later.  Session  is an opaque
+%	handle  to  the  session.  The  session  may  be  resumed  using
+%	r_resume/2. The session key may be exchanged with another Prolog
+%	process. Note that calling r_detach/2 closes the existing Rserve
+%	handle.
+
+r_detach(Rserve, Session) :-
+	r_detach_(Rserve, Session),
+	r_close(Rserve).
+
+%%	r_resume(-Rserve, +Session) is det.
+%%	r_resume(-Rserve, +Session, +Alias) is det.
+%
+%	Resume an R session from a key obtained using r_detach/2.
+
+r_resume(Rserve, Session) :-
+	r_resume(Rserve, Session, _).
+
 
 		 /*******************************
 		 *	      MESSAGES		*

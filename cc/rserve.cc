@@ -846,6 +846,110 @@ PREDICATE(r_login, 3)
   return TRUE;
 }
 
+
+static int
+hex_byte(int val)
+{ if ( val < 10 )
+    return '0'+val;
+  else
+    return 'a'+val-10;
+}
+
+static void
+tohex(char *to, const char *from, int len)
+{ for(int i=0; i<len; i++)
+  { *to++ = hex_byte((from[i]>>4)&0xf);
+    *to++ = hex_byte(from[i]&0xf);
+  }
+  *to = '\0';
+}
+
+
+static int
+unhexb(int c)
+{ if ( c >= '0' && c <= '9' )
+    return c-'0';
+  if ( c >= 'a' && c <= 'f' )
+    return c-'a'+10;
+  if ( c >= 'A' && c <= 'F' )
+    return c-'A'+10;
+  return -1;
+}
+
+static int
+unhex(char *to, const char *from, int size)
+{ for(; *from; from += 2)
+  { if ( --size < 0 || !from[1] )
+      return -1;
+
+    int d1 = unhexb(from[0]);
+    int d2 = unhexb(from[1]);
+    if ( d1 < 0 || d2 < 0 )
+      return -1;
+
+    *to++ = (d1<<4) + d2;
+  }
+
+  return 0;
+}
+
+
+PREDICATE(r_detach_, 2)
+{ Rref *ref;
+  int status = 0;
+
+  get_Rref(A1, &ref);
+  Rsession *session = ref->rc->detach(&status);
+
+  if ( session )
+  { char hkey[65];
+    int rc;
+
+    tohex(hkey, session->key(), 32);
+    rc = (A2 = PlCompound("r_session", PlTermv(session->host(),
+					       (long)session->port(),
+					       hkey)));
+    delete session;
+    return rc;
+  }
+
+  throw RError(status);
+}
+
+
+static const PlFunctor FUNCTOR_r_session3("r_session", 3);
+
+PREDICATE(r_resume, 3)
+{ if ( PL_is_functor(A2, FUNCTOR_r_session3.functor) )
+  { char key[32];
+    char *host = A2[1];
+    int   port = (int)A2[2];
+    char *hkey = A2[3];
+    Rref *ref;
+    atom_t alias = NULL_ATOM;
+
+    if ( !PL_is_variable(A3) &&
+	 !PL_get_atom_ex(A3, &alias) )
+      return FALSE;
+
+    if ( unhex(key, hkey, sizeof(key)) < 0 )
+      throw PlDomainError("r_session_key", A2[3]);
+    Rsession session(host, port, key);
+
+    ref = (Rref *)PL_malloc(sizeof(*ref));
+    memset(ref, 0, sizeof(*ref));
+
+    ref->rc = new Rconnection(&session);
+    sisocks_ok(ref->rc->connect());
+    ref->name = alias;
+
+    return unify_R_ref(A1, ref);
+  }
+
+  throw PlTypeError("r_session", A2);
+}
+
+
 #ifdef CMD_ctrl
 PREDICATE(r_server_eval, 2)
 { Rref *ref;
