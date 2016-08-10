@@ -839,10 +839,40 @@ PREDICATE(r_login, 3)
 { Rref *ref;
   const char *user = A2;
   const char *password = A3;
-  int rc;
 
   get_Rref(A1, &ref);
   rok(ref->rc->login(user, password));
 
   return TRUE;
 }
+
+#ifdef CMD_ctrl
+PREDICATE(r_server_eval, 2)
+{ Rref *ref;
+  const char *command = A2;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->serverEval(command));
+
+  return TRUE;
+}
+
+PREDICATE(r_server_source, 2)
+{ Rref *ref;
+  const char *filename = A2;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->serverEval(filename));
+
+  return TRUE;
+}
+
+PREDICATE(r_server_shutdown, 1)
+{ Rref *ref;
+
+  get_Rref(A1, &ref);
+  rok(ref->rc->serverShutdown());
+
+  return TRUE;
+}
+#endif

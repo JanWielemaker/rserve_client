@@ -43,7 +43,11 @@
 	    r_eval_ex/3,		% +RServe, +Command, -Result
 
 	    r_read_file/3,		% +RServe, +FileName, -String
-	    r_remove_file/2		% +RServe, +FileName
+	    r_remove_file/2,		% +RServe, +FileName
+
+	    r_server_eval/2,		% +Rserve, +Command
+	    r_server_source/2,		% +Rserve, +FileName
+	    r_server_shutdown/1		% +Rserve
 	  ]).
 :- use_module(r_grammar).
 :- use_module(r_term).
