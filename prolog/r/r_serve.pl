@@ -234,16 +234,38 @@ error_lines([H|T]) -->
 
 
 % Sync with CERR_* as defined in Rconnection.h
-r_error_code( -1, connect_failed,    "Connect failed").
-r_error_code( -2, handshake_failed,  "Handshake failed").
-r_error_code( -3, invalid_id,	     "Invalid id").
-r_error_code( -4, protocol_not_supp, "Protocol not supported").
-r_error_code( -5, not_connected,     "Not connected").
-r_error_code( -7, peer_closed,	     "Peer closed connection").
-r_error_code( -8, malformed_packet,  "Malformed packed").
-r_error_code( -9, send_error,	     "Send error").
-r_error_code(-10, out_of_mem,	     "Out of memory").
-r_error_code(-11, not_supported,     "Not supported").
-r_error_code(-12, io_error,	     "I/O error").
-r_error_code(-20, auth_unsupported,  "Authentication not supported").
+r_error_code( -1,  connect_failed,    "Connect failed").
+r_error_code( -2,  handshake_failed,  "Handshake failed").
+r_error_code( -3,  invalid_id,	      "Invalid id").
+r_error_code( -4,  protocol_not_supp, "Protocol not supported").
+r_error_code( -5,  not_connected,     "Not connected").
+r_error_code( -7,  peer_closed,	      "Peer closed connection").
+r_error_code( -8,  malformed_packet,  "Malformed packed").
+r_error_code( -9,  send_error,	      "Send error").
+r_error_code(-10,  out_of_mem,	      "Out of memory").
+r_error_code(-11,  not_supported,     "Not supported").
+r_error_code(-12,  io_error,	      "I/O error").
+r_error_code(-20,  auth_unsupported,  "Authentication not supported").
 
+r_error_code(0x41, auth_failed,	      "Authentication failed").
+r_error_code(0x42, conn_broken,	      "Connection broken").
+r_error_code(0x43, inv_cmd,	      "Invalid command").
+r_error_code(0x44, inv_par,	      "Invalid parameters").
+r_error_code(0x45, 'Rerror',	      "R-error occured").
+r_error_code(0x46, 'IOerror',	      "I/O error").
+r_error_code(0x47, notOpen,	      "Read/write on closed file").
+r_error_code(0x48, accessDenied,      "Access denied").
+r_error_code(0x49, unsupportedCmd,    "Unsupported command").
+r_error_code(0x4a, unknownCmd,	      "Unknown command").
+r_error_code(0x4b, data_overflow,     "Incoming packet is too big").
+r_error_code(0x4c, object_too_big,    "Requested object is too big").
+r_error_code(0x4d, out_of_mem,	      "Out of memory").
+r_error_code(0x4e, ctrl_closed,	      "Control pipe to master is closed").
+
+r_error_code(0x50, session_busy,      "Session is still busy").
+r_error_code(0x51, detach_failed,     "Unable to detach seesion").
+
+r_error_code(0x61, disabled,	      "Feature is disabled").
+r_error_code(0x62, unavailable,	      "Feature is not present").
+r_error_code(0x63, cryptError,	      "Crypto-system error").
+r_error_code(0x64, securityClose,     "Server-initiated close due to security").
