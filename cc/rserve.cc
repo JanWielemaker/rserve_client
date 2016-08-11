@@ -427,7 +427,7 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
     { case D_UNKNOWN:
 	switch(PL_term_type(head))
 	{ case PL_VARIABLE:
-	    throw PlInstantiationError(head);
+	    throw PlInstantiationError();
 	  case PL_INTEGER:
 	    exp->promote(D_INTEGER);
 	    goto case_i;
