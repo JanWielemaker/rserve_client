@@ -99,7 +99,7 @@ SWISH console using pengine_output/1.
 
 :- setting(rserve:socket, atom, '/home/rserve/socket',
 	   "Unix domain socket for connecting to Rserve").
-:- setting(rserve:host,	atom, localhost,
+:- setting(rserve:host,	atom, '127.0.0.1',
 	   "Host for connecting to Rserve").
 :- setting(rserve:port,	integer, 6311,
 	   "Port for connecting to Rserve").
