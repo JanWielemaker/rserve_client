@@ -46,6 +46,14 @@
 #include <SWI-Stream.h>
 #include <SWI-cpp.h>
 
+class PLRconnection : public Rconnection
+{ using Rconnection::Rconnection;
+
+  void oobSend(const Rexp *exp)
+  { Sdprintf("OOB in Prolog!\n");
+  }
+};
+
 		 /*******************************
 		 *	       SYMBOL		*
 		 *******************************/
@@ -54,7 +62,7 @@
 #define R_OPEN_ONCE	0x0002		/* Reuse alias */
 
 typedef struct Rref
-{ Rconnection   *rc;			/* Connection handle */
+{ PLRconnection   *rc;			/* Connection handle */
   atom_t         symbol;		/* associated symbol */
   atom_t	 name;			/* alias name */
   int	         flags;			/* flags */
@@ -163,7 +171,7 @@ static int
 release_R_ref(atom_t symbol)
 { Rref **refp = (Rref **)PL_blob_data(symbol, NULL, NULL);
   Rref *ref   = *refp;
-  Rconnection *rc;
+  PLRconnection *rc;
 
   assert(ref->name == NULL_ATOM);
 
@@ -731,7 +739,7 @@ PREDICATE(r_open, 2)
   ref = (Rref *)PL_malloc(sizeof(*ref));
   memset(ref, 0, sizeof(*ref));
 
-  ref->rc = new Rconnection(host, port);
+  ref->rc = new PLRconnection(host, port);
   sisocks_ok(ref->rc->connect());
   ref->name = alias;
   if ( once )
@@ -745,7 +753,7 @@ PREDICATE(r_close, 1)
 { Rref *ref;
 
   get_Rref(A1, &ref);
-  Rconnection *rc = ref->rc;
+  PLRconnection *rc = ref->rc;
 
   ref->rc = NULL;
   ref->flags |= R_DESTROYED;
@@ -939,7 +947,7 @@ PREDICATE(r_resume, 3)
     ref = (Rref *)PL_malloc(sizeof(*ref));
     memset(ref, 0, sizeof(*ref));
 
-    ref->rc = new Rconnection(&session);
+    ref->rc = new PLRconnection(&session);
     sisocks_ok(ref->rc->connect());
     ref->name = alias;
 
