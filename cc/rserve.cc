@@ -389,11 +389,19 @@ public:
   std::string sv;
 
   PlRExp()
-  {
+  { exp = (Rexp*)NULL;
   }
 
   ~PlRExp()
-  { delete exp;
+  { if ( exp )
+      delete exp;
+  }
+
+  Rexp *
+  get_expression()
+  { Rexp *e = exp;
+    exp = (Rexp*)NULL;
+    return e;
   }
 
   void
@@ -714,7 +722,11 @@ PLRconnection::oobMessage(const Rexp *exp, int code)
 	 unify_exp(av[1], exp) &&
 	 (av[2] = code) &&
 	 PlCall("rserve", "oob_message", av) )
-    { return term_to_rexp(av[3])->exp;		/* FIXME: free won't work */
+    { PlRExp *r = term_to_rexp(av[3]);
+      Rexp *re = r->get_expression();
+
+      delete r;
+      return re;
     }
   } catch(PlException &e)
   { Sdprintf("R OOB: %s\n", (const char*)e);
