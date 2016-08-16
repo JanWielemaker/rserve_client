@@ -9,6 +9,8 @@ LD=g++
 CXXCLIENT=Rserve/src/client/cxx
 CXXDEPS= $(CXXCLIENT)/configure
 RCONN=$(CXXCLIENT)/Rconnection.o
+RCONNH=$(CXXCLIENT)/Rconnection.h
+RCONNIN=$(CXXCLIENT)/Rconnection.cc $(RCONNH)
 RSINCLUDE=-IRserve/src -IRserve/src/include -I$(CXXCLIENT)
 
 OBJ=cc/rserve.o $(RCONN)
@@ -19,7 +21,7 @@ $(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $(OBJ) $(LIBS) $(SWISOLIB)
 
-cc/rserve.o: cc/rserve.cc $(CXXCLIENT)/Makefile
+cc/rserve.o: cc/rserve.cc $(CXXCLIENT)/Makefile $(RCONNH)
 	$(CC) $(ARCH) $(CFLAGS) $(SWICPPFLAGS) $(RSINCLUDE) -c -o $@ $<
 
 clean:
@@ -44,5 +46,5 @@ $(CXXCLIENT)/configure: $(CXXCLIENT)
 $(CXXCLIENT)/Makefile: $(CXXCLIENT)/configure $(CXXCLIENT)/Makefile.in
 	cd $(CXXCLIENT) && ./configure
 
-$(RCONN): $(CXXCLIENT)/Makefile
+$(RCONN): $(CXXCLIENT)/Makefile $(RCONNIN)
 	$(CXX) -c $(CPPFLAGS) $(COFLAGS) $(RSINCLUDE) -o $@ $(CXXCLIENT)/Rconnection.cc
