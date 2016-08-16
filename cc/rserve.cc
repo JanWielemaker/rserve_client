@@ -47,11 +47,13 @@
 #include <SWI-cpp.h>
 
 class PLRconnection : public Rconnection
-{ using Rconnection::Rconnection;
+{
+public:
+  struct Rref *ref;
 
-  void oobSend(const Rexp *exp)
-  { Sdprintf("OOB in Prolog!\n");
-  }
+  using Rconnection::Rconnection;
+
+  void oobSend(const Rexp *exp, int code);
 };
 
 		 /*******************************
@@ -62,7 +64,7 @@ class PLRconnection : public Rconnection
 #define R_OPEN_ONCE	0x0002		/* Reuse alias */
 
 typedef struct Rref
-{ PLRconnection   *rc;			/* Connection handle */
+{ PLRconnection *rc;			/* Connection handle */
   atom_t         symbol;		/* associated symbol */
   atom_t	 name;			/* alias name */
   int	         flags;			/* flags */
@@ -678,6 +680,28 @@ unify_exp(const PlTerm &t, const Rexp *exp)
   }
 }
 
+		 /*******************************
+		 *	        OOB		*
+		 *******************************/
+
+void
+PLRconnection::oobSend(const Rexp *exp, int code)
+{ PlFrame fr;
+  PlTermv av(3);
+
+  try
+  { int rc = ( unify_R_ref(av[0], ref) &&
+	       unify_exp(av[1], exp) &&
+	       (av[2] = code) &&
+	       PlCall("rserve", "oob_send", av)
+	     );
+  } catch(PlException &e)
+  { Sdprintf("R OOB: %s\n", (const char*)e);
+  } catch(...)
+  { Sdprintf("R OOB: unknown exception\n");
+  }
+}
+
 
 		 /*******************************
 		 *	    PREDICATES		*
@@ -740,6 +764,7 @@ PREDICATE(r_open, 2)
   memset(ref, 0, sizeof(*ref));
 
   ref->rc = new PLRconnection(host, port);
+  ref->rc->ref = ref;
   sisocks_ok(ref->rc->connect());
   ref->name = alias;
   if ( once )
@@ -948,6 +973,7 @@ PREDICATE(r_resume, 3)
     memset(ref, 0, sizeof(*ref));
 
     ref->rc = new PLRconnection(&session);
+    ref->rc->ref = ref;
     sisocks_ok(ref->rc->connect());
     ref->name = alias;
 
