@@ -113,7 +113,7 @@ alias(atom_t name, atom_t symbol)
     alias_lock.unlock();
   } else
   { alias_lock.unlock();
-    throw PlPermissionError("alias", "rocksdb", PlTerm(name));
+    throw PlPermissionError("alias", "rserve", PlTerm(name));
   }
 }
 
@@ -156,7 +156,7 @@ write_R_ref(IOSTREAM *s, atom_t symbol, int flags)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-GC an rocks from the atom garbage collector.
+GC an rserve connection from the atom garbage collector.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
@@ -198,7 +198,7 @@ load_R_ref(IOSTREAM *fd)
 static PL_blob_t R_blob =
 { PL_BLOB_MAGIC,
   PL_BLOB_UNIQUE,
-  (char*)"rocksdb",
+  (char*)"rserve",
   release_R_ref,
   NULL,
   write_R_ref,
