@@ -53,7 +53,8 @@ public:
 
   using Rconnection::Rconnection;
 
-  void oobSend(const Rexp *exp, int code);
+  void  oobSend(const Rexp *exp, int code);
+  Rexp *oobMessage(const Rexp *exp, int code);
 };
 
 		 /*******************************
@@ -700,6 +701,28 @@ PLRconnection::oobSend(const Rexp *exp, int code)
   } catch(...)
   { Sdprintf("R OOB: unknown exception\n");
   }
+}
+
+
+Rexp *
+PLRconnection::oobMessage(const Rexp *exp, int code)
+{ PlFrame fr;
+  PlTermv av(4);
+
+  try
+  { if ( unify_R_ref(av[0], ref) &&
+	 unify_exp(av[1], exp) &&
+	 (av[2] = code) &&
+	 PlCall("rserve", "oob_message", av) )
+    { return term_to_rexp(av[3])->exp;		/* FIXME: free won't work */
+    }
+  } catch(PlException &e)
+  { Sdprintf("R OOB: %s\n", (const char*)e);
+  } catch(...)
+  { Sdprintf("R OOB: unknown exception\n");
+  }
+
+  return (Rexp*)NULL;
 }
 
 
