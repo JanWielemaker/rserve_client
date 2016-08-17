@@ -33,14 +33,14 @@ distclean: clean
 check::
 install::
 
-$(CXXCLIENT):
+$(CXXCLIENT)/configure.ac:
 	@if [ -d .git ]; then \
 	  git submodule update --init; \
 	else \
 	  git clone -b janw https://github.com/JanWielemaker/Rserve; \
 	fi
 
-$(CXXCLIENT)/configure: $(CXXCLIENT)
+$(CXXCLIENT)/configure: $(CXXCLIENT)/configure.ac
 	cd $(CXXCLIENT) && autoheader && autoconf
 
 $(CXXCLIENT)/Makefile: $(CXXCLIENT)/configure $(CXXCLIENT)/Makefile.in
