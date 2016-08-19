@@ -71,6 +71,8 @@ The            design            is              inspired             by
 %	  - Known operators are passed as infix operators.  The
 %	    following operators are known: =|+, -, *, /, mod, '%%', ^,
 %	    >=, >, ==, <, <=, =<, \=, '!=', :, <-|=
+%	  - `Expr1,Expr2` is translated into two R statements separated
+%	    by a newline.
 %	  - Compound terms are translated to function calls.
 %
 %	This library loads r_expand_dot.pl,  which   uses  the `.` infix
@@ -111,6 +113,9 @@ r_expr(Left$Right, Ctx) --> !,
 	r_expr(Left, Ctx), "$", r_expr(Right, Ctx).
 r_expr(Array[Index], Ctx) --> !,
 	r_expr(Array, Ctx), "[", r_expr(Index, Ctx.put(priority, 999)), "]".
+r_expr((A,B), Ctx) --> !,
+	r_expr(A, Ctx), "\n",
+	r_expr(B, Ctx).
 r_expr(Compound, Ctx) -->
 	{ compound(Compound),
 	  compound_name_arguments(Compound, Name, Args),
