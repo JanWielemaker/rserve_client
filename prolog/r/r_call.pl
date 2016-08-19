@@ -140,14 +140,30 @@ r_primitive_data(Data) :-
 	(   var(Term)
 	->  instantiation_error(Term)
 	;   Term = r_execute(Assignments, Command, _Var)
-	->  format(string(Capture), "capture.output(~s)", [Command]),
-	    r_execute(Assignments, Capture, Output),
-	    emit_r_output(Output)
-	;   phrase(r_expression(capture.output(Term), Assignments), Command)
-	->  r_execute(Assignments, Command, Output),
-	    emit_r_output(Output)
+	->  r_capture_output(Assignments, Command)
+	;   phrase(r_expression(Term, Assignments), Command)
+	->  r_capture_output(Assignments, Command)
 	;   domain_error(r_expression, Term)
 	).
+
+%%	r_capture(Assignments, Command)
+%
+%	Execute Command, presenting the R console output to the (Prolog)
+%	user.
+
+r_capture_output(Assignments, Command) :-
+	to_string(Command, CommandS),
+	r_assign($, 'Rserve.cmd', CommandS),
+	r_execute(Assignments,
+		  "capture.output(eval(parse(text=Rserve.cmd)))",
+		  Output),
+	emit_r_output(Output).
+
+to_string(Command, CommandS) :-
+	string(Command), !,
+	CommandS = Command.
+to_string(Command, CommandS) :-
+	string_codes(CommandS, Command).
 
 emit_r_output(Output) :-
 	r_console(stdout, Output), !.
