@@ -47,3 +47,4 @@ isolated sandbox*.
 sandbox:safe_primitive(r_call: <-(_)).
 sandbox:safe_primitive(r_call: <-(_,_)).
 sandbox:safe_primitive(r_call: r_execute(_,_,_)).
+sandbox:safe_primitive(r_call: r(_,_,_,_)).
