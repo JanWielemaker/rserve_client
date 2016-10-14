@@ -30,7 +30,7 @@ It performs these steps:
 
 This  package  is  primarily  intended  for    accessing   R  in  server
 environments such as [SWISH](http://swish.swi-prolog.org).  We created a
-[Docker container](https://github.com/frnmst/rserve-sandbox) that
+[Docker container](https://github.com/JanWielemaker/rserve-sandbox) that
 runs  Rserve  in  a  sandbox.  The  container  exposes  Rserve  using  a
 Unix-domain socket in `home/rserve/socket`
 
@@ -46,7 +46,7 @@ below the same parent, R may be linked to SWISH by adding the following to
 Instead of using `:- use_module(library(r/r_sandbox)).`, you can also 
 run SWISH in authenticated mode by loading `lib/authenticate.pl.`
 
-If you use the provided Docker image, don't forget to add SIWSH's running user 
+If you use the provided Docker image, don't forget to add SWISH's running user 
 to `rserve`:
 
     # gpasswd -a <SWISH's user> rserve
