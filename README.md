@@ -18,7 +18,9 @@ the common C++ build tools.
 
     ?- pack_install('rserve_client').
 
-This is tested on Ubuntu (14.04 and 16.04).  It performs these steps:
+This is tested on Ubuntu (14.04 and 16.04) and on Antergos GNU/Linux
+
+It performs these steps:
 
   - Clone my fork of Rserve (some extensions to the C++ client)
   - Configure and build the C++ client library
@@ -28,20 +30,33 @@ This is tested on Ubuntu (14.04 and 16.04).  It performs these steps:
 
 This  package  is  primarily  intended  for    accessing   R  in  server
 environments such as [SWISH](http://swish.swi-prolog.org).  We created a
-[Docker container](https://github.com/JanWielemaker/rserve-sandbox) that
+[Docker container](https://github.com/frnmst/rserve-sandbox) that
 runs  Rserve  in  a  sandbox.  The  container  exposes  Rserve  using  a
-Unix-domain socket at the following address:
+Unix-domain socket in `home/rserve/socket`
 
-    /home/rserve/socket
+## Integration with SWISH
 
-With SWISH and is interface  installed   in  adjacent directories, i.e.,
-below the same parent, R may be linked to SWISH doing
+With SWISH and his interface  installed in  adjacent directories, i.e.,
+below the same parent, R may be linked to SWISH by adding the following to 
+`run.pl`:
 
     :- use_module(lib/r_swish).
+    :- use_module(library(r/r_sandbox)).
 
-Now, R is not safe. You should either run Rserve in a tight OS container
-and load `library(r/r_sandbox)` or run SWISH   in  authenticated mode by
-loading `lib/authenticate.pl.`
+Instead of using `:- use_module(library(r/r_sandbox)).`, you can also 
+run SWISH in authenticated mode by loading `lib/authenticate.pl.`
+
+If you use the provided Docker image, don't forget to add SIWSH's running user 
+to `rserve`:
+
+    # gpasswd -a <SWISH's user> rserve
+
+## Final test
+
+Finally you can test the installation by executing the following query
+as described [here](http://swish.swi-prolog.org/example/swish_tutorials.swinb)
+
+    ?- <- 'R.Version'().
 
 ## Libraries provided
 
@@ -93,3 +108,9 @@ Angelopoulos](http://stoics.org.uk/~nicos/).  Main differences:
     seriously sandbox the R executable, each query in SWISH gets
     its own R instance and information can thus nog leak between
     queries and users.
+
+## License
+
+Copyright (c) 2016, Jan Wielemaker, Franco Masotti.
+2-Clause BSD (aka FreeBSD).
+

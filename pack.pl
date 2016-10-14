@@ -1,3 +1,8 @@
+/* 
+ * Copyright (c) 2016, Jan Wielemaker, Franco Masotti.
+ * See LICENSE file for details.
+ */
+
 name('rserve_client').
 version('0.7').
 title('R Rserve client').
