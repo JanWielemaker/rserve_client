@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2016, VU University Amsterdam
+    Copyright (c)  2017, VU University Amsterdam
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 :- module(r_data,
 	  [ r_data_frame/3,		% +Rvar, +Columns, :Goal
 	    r_data_frame_from_rows/2,	% +RVar, +Rows
+	    r_data_frame_from_dicts/2,	% +DataFrame, +Rows
 
 	    r_data_frame_to_dicts/2,	% +Rvar, -Dicts
 	    r_data_frame_to_rows/3,	% +RVar, +Functor, -Rows
@@ -46,6 +47,7 @@
 :- use_module(library(apply)).
 :- use_module(library(error)).
 :- use_module(library(pairs)).
+:- use_module(library(lists)).
 
 :- meta_predicate
 	r_data_frame(+, +, 0).
@@ -144,6 +146,29 @@ term_col(1, Arity, Functor, Value, Term) :- !,
 term_col(I, _, _, Value, Term) :-
 	arg(I, Term, Value).
 
+%%	r_data_frame_from_dicts(+DataFrame, +Rows) is det.
+%
+%	Assign the R variable DataFrame the content   of Rows. Rows is a
+%	list of dicts that must all have the  same set of keys. The keys
+%	are used as column names.
+%
+%	@see dicts_to_same_keys/3 to align the set of keys for each dict
+
+r_data_frame_from_dicts(DataFrame, Rows) :-
+	must_be(atom, DataFrame),
+	must_be(list, Rows),
+	Rows = [Row1|_],
+	dict_keys(Row1, Keys),
+	dict_col_data(Keys, Rows, ColData),
+	compound_name_arguments(Term, 'data.frame', ColData),
+	DataFrame <- Term,
+	colnames(DataFrame) <- Keys.
+
+dict_col_data([], _, []).
+dict_col_data([K|Keys], Rows, [ColI|ColR]) :-
+	maplist(get_dict(K), Rows, ColI),
+	dict_col_data(Keys, Rows, ColR).
+
 %%	r_data_frame_from_rows(+DataFrame, +Rows) is det.
 %
 %	Assign the R variable DataFrame the content   of Rows. Rows is a
@@ -155,7 +180,8 @@ r_data_frame_from_rows(DataFrame, Rows) :-
 	Rows = [Row1|_],
 	functor(Row1, _, NCols),
 	col_data(1, NCols, Rows, ColData),
-	compound_name_arguments(Term, 'data.frame', ColData),
+	append(ColData, [stringsAsFactors = 'FALSE'], ColDataOpts),
+	compound_name_arguments(Term, 'data.frame', ColDataOpts),
 	DataFrame <- Term.
 
 col_data(I, NCols, Rows, [ColI|ColR]) :-

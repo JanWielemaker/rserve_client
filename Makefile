@@ -22,7 +22,7 @@ $(SOBJ): $(OBJ)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $(OBJ) $(LIBS) $(SWISOLIB)
 
 cc/rserve.o: cc/rserve.cc $(CXXCLIENT)/Makefile $(RCONNH)
-	$(CC) $(ARCH) $(CFLAGS) $(SWICPPFLAGS) $(RSINCLUDE) -c -o $@ $<
+	$(CC) $(ARCH) $(CFLAGS) $(COFLAGS) $(SWICPPFLAGS) $(RSINCLUDE) -c -o $@ $<
 
 clean:
 	rm -f cc/rserve.o $(RCONN) *~
