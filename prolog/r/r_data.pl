@@ -47,6 +47,7 @@
 :- use_module(library(apply)).
 :- use_module(library(error)).
 :- use_module(library(pairs)).
+:- use_module(library(lists)).
 
 :- meta_predicate
 	r_data_frame(+, +, 0).
@@ -179,7 +180,8 @@ r_data_frame_from_rows(DataFrame, Rows) :-
 	Rows = [Row1|_],
 	functor(Row1, _, NCols),
 	col_data(1, NCols, Rows, ColData),
-	compound_name_arguments(Term, 'data.frame', ColData),
+	append(ColData, [stringsAsFactors = 'FALSE'], ColDataOpts),
+	compound_name_arguments(Term, 'data.frame', ColDataOpts),
 	DataFrame <- Term.
 
 col_data(I, NCols, Rows, [ColI|ColR]) :-
