@@ -67,7 +67,9 @@ The            design            is              inspired             by
 %	    to create a temporary R variable. The R command translation
 %	    contains the variable name
 %	  - =|Left$Right|= is translated as is.
-%	  - A term =|X[I]|= is translated as is.
+%	  - An array index =|X[I,...]|= is translated as is.  Empty
+%	    elements in the index, e.g., the R expression =|a[,3]|=
+%	    can be written as `a['',3]` or `a[-,3]`.
 %	  - Known operators are passed as infix operators.  The
 %	    following operators are known: =|+, -, *, /, mod, '%%', ^,
 %	    >=, >, ==, <, <=, =<, \=, '!=', :, <-|=
@@ -111,8 +113,9 @@ r_expr(List, Ctx) -->
 	atom(Var).
 r_expr(Left$Right, Ctx) --> !,
 	r_expr(Left, Ctx), "$", r_expr(Right, Ctx).
-r_expr(Array[Index], Ctx) --> !,
-	r_expr(Array, Ctx), "[", r_expr(Index, Ctx.put(priority, 999)), "]".
+r_expr([](Index, Array), Ctx) --> !,
+	r_expr(Array, Ctx),
+	"[", r_index(Index, Ctx.put(priority, 999)), "]".
 r_expr((A,B), Ctx) --> !,
 	r_expr(A, Ctx), "\n",
 	r_expr(B, Ctx).
@@ -147,6 +150,26 @@ r_arguments([H|T], Ctx) -->
 	;   ", ",
 	    r_arguments(T, Ctx)
 	).
+
+r_index([], _) --> "".
+r_index([H|T], Ctx) -->
+	r_index_elem(H, Ctx),
+	(   {T==[]}
+	->  ""
+	;   ",",
+	    r_index(T, Ctx)
+	).
+
+r_index_elem(Var, _) -->
+	{ var(Var),
+	  instantiation_error(Var)
+	}.
+r_index_elem('', _) -->
+	!.
+r_index_elem(-, _) -->
+	!.
+r_index_elem(Expr, Ctx) -->
+	r_expr(Expr, Ctx).
 
 assignment(Data, Ctx, Var) :-
 	Vars = Ctx.v,
