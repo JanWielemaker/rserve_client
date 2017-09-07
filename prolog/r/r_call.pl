@@ -59,6 +59,7 @@
 :- multifile
 	r_init_session/1,		% +Session
 	r_console/2,			% +Type, ?Term
+	r_console_property/1,		% ?Property
 	r_display_images/1.		% +Images
 
 /** <module> R plugin for SWISH
@@ -188,6 +189,7 @@ emit_r_output(Output) :-
 %	@arg Command is a string holding the R command to execute
 
 r_execute(Assignments, Command, Result) :-
+	r_setup_console($),
 	setup_call_cleanup(
 	    maplist(r_bind, Assignments),
 	    r_eval_ex($, Command, Result),
@@ -217,6 +219,21 @@ r_vars([H|T]) -->
 	;   ",",
 	    r_vars(T)
 	).
+
+%!	r_setup_console(+R)
+%
+%	Set the notion of R's console with   to  the width of the Prolog
+%	console.       This       may        be         hooked        by
+%	r_console_property(size(Rows,Cols) to deal with e.g., SWISH.
+
+r_setup_console(R) :-
+	(   r_console_property(size(_Rows, Cols))
+	->  true
+	;   tty_size(_Rows, Cols)
+	),
+	format(string(Command), 'options(width=~d)', Cols),
+	r_eval(R, Command, _).
+r_setup_console(_).
 
 
 		 /*******************************
