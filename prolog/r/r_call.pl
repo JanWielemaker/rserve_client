@@ -230,7 +230,7 @@ r_setup_console(R) :-
 	(   r_console_property(size(_Rows, Cols))
 	->  true
 	;   tty_size(_Rows, Cols)
-	),
+	), !,
 	format(string(Command), 'options(width=~d)', Cols),
 	r_eval(R, Command, _).
 r_setup_console(_).
