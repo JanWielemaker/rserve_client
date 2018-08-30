@@ -115,6 +115,9 @@ This module provides a low-level binding to the Rserve R server process.
 %	  A Prolog string is always mapped to an R string. The interface
 %	  assumes UTF-8 encoding for R. See the `encoding` setting in
 %	  the Rserve config file.
+%	  $ c(Elem1, Elem2, ...) :
+%	  A compound term with functor `c` is handled in the same way
+%	  as a _list_.
 
 r_assign(Rserve, VarName, Value) :-
 	r_identifier(VarName), !,

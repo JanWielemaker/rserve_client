@@ -368,6 +368,9 @@ typedef enum dtype
 } dtype;
 
 
+static const PlAtom ATOM_false("false");
+static const PlAtom ATOM_true("true");
+
 class PlRExp
 {
 public:
@@ -412,40 +415,31 @@ public:
       type = t;
     }
   }
-};
 
-static const PlAtom ATOM_false("false");
-static const PlAtom ATOM_true("true");
-
-static void
-list_to_rexp(const PlTerm &t, PlRExp *exp)
-{ PlTail list(t);
-  PlTerm head;
-
-  for(size_t i=0; list.next(head); i++)
-  { switch(exp->type)
+  void append(const PlTerm &t)
+  { switch(type)
     { case D_UNKNOWN:
-	switch(PL_term_type(head))
+	switch(PL_term_type(t))
 	{ case PL_VARIABLE:
 	    throw PlInstantiationError();
 	  case PL_INTEGER:
-	    exp->promote(D_INTEGER);
+	    promote(D_INTEGER);
 	    goto case_i;
 	  case PL_FLOAT:
-	    exp->promote(D_DOUBLE);
+	    promote(D_DOUBLE);
 	    goto case_d;
 	  case PL_ATOM:
 	  { atom_t a;
 
-	    if ( PL_get_atom(head, &a) &&
+	    if ( PL_get_atom(t, &a) &&
 		 (ATOM_true == a || ATOM_false == a) )
-	    { exp->promote(D_BOOLEAN);
+	    { promote(D_BOOLEAN);
 	      goto case_b;
 	    }
 	  }
 	  /*FALLTHROUGH*/
 	  case PL_STRING:
-	    exp->promote(D_STRING);
+	    promote(D_STRING);
 	    goto case_s;
 	  break;
 	}
@@ -453,8 +447,8 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
       case_b:
       { int i;
 
-	if ( PL_get_bool_ex(head, &i) )
-	{ exp->sv.push_back(i != 0);
+	if ( PL_get_bool_ex(t, &i) )
+	{ sv.push_back(i != 0);
 	  break;
 	}
 	PlException().cppThrow();	/* FIXME: Promote */
@@ -464,49 +458,64 @@ list_to_rexp(const PlTerm &t, PlRExp *exp)
       { int i;
 	double d;
 
-	if ( PL_get_integer(head, &i) )
-	{ exp->iv.push_back(i);
-	} else if ( PL_get_float(head, &d) )
-	{ exp->promote(D_DOUBLE);
-	  exp->dv.push_back(d);
+	if ( PL_get_integer(t, &i) )
+	{ iv.push_back(i);
+	} else if ( PL_get_float(t, &d) )
+	{ promote(D_DOUBLE);
+	  dv.push_back(d);
 	} else
-	  throw PlTypeError("numeric", head);
+	  throw PlTypeError("numeric", t);
         break;
       }
       case D_DOUBLE:
       case_d:
-	exp->dv.push_back(head);
+	dv.push_back(t);
         break;
       case D_STRING:
       case_s:
       { std::string s;
-	get_string(head, s);
-	exp->sv += s;
-	exp->sv.push_back(0);
+	get_string(t, s);
+	sv += s;
+	sv.push_back(0);
 	break;
       }
     }
   }
 
-  switch(exp->type)
-  { case D_BOOLEAN:
-    { unsigned int *lenptr = (unsigned int*)exp->sv.data();
-      *lenptr = (unsigned int)(exp->sv.size()-sizeof(unsigned int));
-      exp->exp = new Rboolean((unsigned char*)exp->sv.data(), exp->sv.size());
-      break;
-    }
-    case D_INTEGER:
-      exp->exp = new Rinteger(exp->iv.data(), exp->iv.size());
-      break;
-    case D_DOUBLE:
-      exp->exp = new Rdouble(exp->dv.data(), exp->dv.size());
-      break;
-    case D_STRING:
-    { exp->sv.push_back(1);		/* s1\000s2\000...sn\000\001 */
-      exp->exp = new Rstrings(exp->sv);
-      break;
+  void finish(const PlTerm &t)
+  { switch(type)
+    { case D_UNKNOWN:
+	throw PlTypeError("R-expression", t);
+      case D_BOOLEAN:
+      { unsigned int *lenptr = (unsigned int*)sv.data();
+	*lenptr = (unsigned int)(sv.size()-sizeof(unsigned int));
+	exp = new Rboolean((unsigned char*)sv.data(), sv.size());
+	break;
+      }
+      case D_INTEGER:
+	exp = new Rinteger(iv.data(), iv.size());
+	break;
+      case D_DOUBLE:
+	exp = new Rdouble(dv.data(), dv.size());
+	break;
+      case D_STRING:
+      { sv.push_back(1);		/* s1\000s2\000...sn\000\001 */
+	exp = new Rstrings(sv);
+	break;
+      }
     }
   }
+};
+
+static void
+list_to_rexp(const PlTerm &t, PlRExp *exp)
+{ PlTail list(t);
+  PlTerm head;
+
+  for(size_t i=0; list.next(head); i++)
+    exp->append(head);
+
+  exp->finish(t);
 }
 
 
@@ -552,6 +561,21 @@ term_to_rexp(const PlTerm &t)
       exp->exp = new Rstrings(s);
       break;
     }
+    case PL_TERM:
+    { const char *nm = t.name();
+      if ( nm && strcmp(nm, "c") == 0 )
+      { ARITY_T len = t.arity();
+
+	for(ARITY_T i=1; i<= len; i++)
+	  exp->append(t[i]);
+	exp->finish(t);
+	break;
+      }
+    }
+    /*FALLTHROUGH*/
+    default:
+      delete(exp);
+      throw PlTypeError("R-expression", t);
   }
 
   return exp;
