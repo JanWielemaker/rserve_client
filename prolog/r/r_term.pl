@@ -58,8 +58,9 @@ The            design            is              inspired             by
 %	Grammar that creates an R  command   from  a  Prolog term. Terms
 %	recognised:
 %
-%	  - R identifier atom
 %	  - The atoms `true` and `false` are mapped to TRUE and FALSE.
+%	  - Other Prolog *atoms* are mapped to an R _name_. If required,
+%	    the name is quoted using backquotes.
 %	  - A Prolog *string* is mapped to an R string. The server
 %	    should run in UTF-8 mode for exchange of Unicode data.
 %	  - A Prolog *number* is mapped to an R number.
@@ -94,15 +95,18 @@ r_expr(Var, _) -->
 r_expr(true, _) --> !, "TRUE".
 r_expr(false, _) --> !, "FALSE".
 r_expr(Identifier, _) -->
-	{ atom(Identifier),
-	  r_identifier(Identifier)
+	{ atom(Identifier)
 	}, !,
-	atom(Identifier).
+	(   { r_identifier(Identifier) }
+	->  atom(Identifier)
+	;   { atom_codes(Identifier, Codes) },
+	    "`", r_string_codes(Codes, 0'`), "`"
+	).
 r_expr(String, _) -->
 	{ string(String),
 	  string_codes(String, Codes)
 	}, !,
-	"\"", r_string_codes(Codes), "\"".
+	"\"", r_string_codes(Codes, 0'"), "\"".
 r_expr(Number, _) -->
 	{ number(Number) }, !,
 	number(Number).
@@ -179,18 +183,18 @@ assignment(Data, Ctx, Var) :-
 	b_set_dict(tmpvar, Vars, I2),
 	b_set_dict(assignments, Vars, [Var=Data|A0]).
 
-%%	r_string_codes(+Codes)//
+%%	r_string_codes(+Codes, +Esc)//
 %
 %	Emit an escaped R string.
 %	@tbd	Do we need to use escape characters?
 
-r_string_codes([]) --> [].
-r_string_codes([H|T]) --> r_string_code(H), r_string_codes(T).
+r_string_codes([], _) --> [].
+r_string_codes([H|T], Esc) --> r_string_code(H, Esc), r_string_codes(T, Esc).
 
-r_string_code(0) --> !,
+r_string_code(0, _) --> !,
 	{ domain_error(r_string_code, 0) }.
-r_string_code(0'") --> !, "\\\"".
-r_string_code(C) --> [C].
+r_string_code(C, C) --> !, "\\", [C].
+r_string_code(C, _) --> [C].
 
 %%	r_infix_op(Op, Rop, Priority, Associativity)
 %
