@@ -374,7 +374,7 @@ static const PlAtom ATOM_true("true");
 class PlRExp
 {
 public:
-  Rexp *exp;
+  Rexp *exp = (Rexp*)NULL;
   dtype type = D_UNKNOWN;
   std::vector<int> iv;
   std::vector<double> dv;
@@ -385,7 +385,8 @@ public:
   }
 
   ~PlRExp()
-  { delete exp;
+  { if ( exp )
+      delete exp;
   }
 
   void
