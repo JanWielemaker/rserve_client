@@ -61,6 +61,7 @@ The            design            is              inspired             by
 %	  - The atoms `true` and `false` are mapped to TRUE and FALSE.
 %	  - Other Prolog *atoms* are mapped to an R _name_. If required,
 %	    the name is quoted using backquotes.
+%	  - A term +(Atom) is mapped to an R string.
 %	  - A Prolog *string* is mapped to an R string. The server
 %	    should run in UTF-8 mode for exchange of Unicode data.
 %	  - A Prolog *number* is mapped to an R number.
@@ -106,6 +107,11 @@ r_expr(String, _) -->
 	{ string(String),
 	  string_codes(String, Codes)
 	}, !,
+	"\"", r_string_codes(Codes, 0'"), "\"".
+r_expr(+Atom, _) -->
+	{ atom(Atom), !,
+	  atom_codes(Atom, Codes)
+	},
 	"\"", r_string_codes(Codes, 0'"), "\"".
 r_expr(Number, _) -->
 	{ number(Number) }, !,

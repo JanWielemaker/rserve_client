@@ -571,6 +571,14 @@ term_to_rexp(const PlTerm &t)
 	  exp->append(t[i]);
 	exp->finish(t);
 	break;
+      } else if ( nm && strcmp(nm, "+") == 0 && t.arity() == 1)
+      { std::string s;
+
+	get_string(t[1], s);
+	s.push_back(0);
+	s.push_back(1);
+	exp->exp = new Rstrings(s);
+	break;
       }
     }
     /*FALLTHROUGH*/
