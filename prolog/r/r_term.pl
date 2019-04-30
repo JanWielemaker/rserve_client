@@ -70,7 +70,7 @@ The            design            is              inspired             by
 %	  - =|Left$Right|= is translated as is.
 %	  - An array index =|X[I,...]|= is translated as is.  Empty
 %	    elements in the index, e.g., the R expression =|a[,3]|=
-%	    can be written as `a['',3]` or `a[-,3]`.
+%	    can be written as `a['',3]`, `a[-,3]` or `a[*,3]`.
 %	  - Known operators are passed as infix operators.  The
 %	    following operators are known: =|+, -, *, /, mod, '%%', ^,
 %	    >=, >, ==, <, <=, =<, \=, '!=', :, <-|=
@@ -171,6 +171,8 @@ r_index_elem(Var, _) -->
 r_index_elem('', _) -->
 	!.
 r_index_elem(-, _) -->
+	!.
+r_index_elem(*, _) -->
 	!.
 r_index_elem(Expr, Ctx) -->
 	r_expr(Expr, Ctx).
