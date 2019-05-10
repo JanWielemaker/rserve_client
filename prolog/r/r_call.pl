@@ -3,7 +3,8 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2016, VU University Amsterdam
+    Copyright (c)  2016-2019, VU University Amsterdam
+			      CWI, Amsterdam
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -35,6 +36,8 @@
 :- module(r_call,
 	  [ (<-)/2,			% ?Var, +Expression
 	    (<-)/1,			% +Expression
+	    r_call/2,			% +Function, +Options
+
 					% Internal predicates
 	    r/4,			% Quasi quotation parser
 	    r_execute/3,		% +Assignments, +Command, -Result
@@ -55,6 +58,7 @@
 :- use_module(library(quasi_quotations)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(settings)).
+:- use_module(library(options)).
 
 :- multifile
 	r_init_session/1,		% +Session
@@ -170,6 +174,45 @@ emit_r_output(Output) :-
 	r_console(stdout, Output), !.
 emit_r_output(Output) :-
 	maplist(writeln, Output).
+
+%!	r_call(+Fun, +Options)
+%
+%	Construct and possibly call an R function. Fun can be an atom or
+%	a compound, eg  plot,  or   plot(width=3).  The  predicate  also
+%	supports multiple output destinations.  Options processed:
+%
+%	  - call(Bool)
+%	    If `false` (default `true`), do __not__ call the result.
+%	  - fcall(-Term)
+%	    Term is unified with the constructed call
+%	  - rvar(Var)
+%	    Variable for the output
+%
+%	@compat This is a partial implementation of the corresponding
+%	[real](http://www.swi-prolog.org/pack/file_details/real/prolog/real.pl) predicate.
+
+r_call(Func, Options) :-
+	partition(eq_pair, Options, XArgs, Options1),
+	extend(Func, XArgs, Call),
+	option(fcall(Call), Options1, _),
+	(   option(call(true), Options1, true)
+	->  (   option(rvar(Var), Options1)
+	    ->  Var <- Call
+	    ;   <- Call
+	    )
+	;   true
+	).
+
+eq_pair(_=_).
+
+extend(Compound, XArgs, Term) :-
+	compound(Compound), !,
+	compound_name_arguments(Compound, Func, Args0),
+	append(Args0, XArgs, Args),
+	compound_name_arguments(Term, Func, Args).
+extend(Atom, XArgs, Term) :-
+	compound_name_arguments(Term, Atom, XArgs).
+
 
 %%	r_console(+Stream, ?Term)
 %
