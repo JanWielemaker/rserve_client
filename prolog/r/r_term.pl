@@ -109,7 +109,7 @@ r_expr(String, _) -->
 	}, !,
 	"\"", r_string_codes(Codes, 0'"), "\"".
 r_expr(+Atom, _) -->
-	{ atom(Atom), !,
+	{ atomic(Atom), !,
 	  atom_codes(Atom, Codes)
 	},
 	"\"", r_string_codes(Codes, 0'"), "\"".
