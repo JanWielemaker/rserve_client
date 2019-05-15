@@ -58,7 +58,7 @@
 :- use_module(library(quasi_quotations)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(settings)).
-:- use_module(library(options)).
+:- use_module(library(option)).
 
 :- multifile
 	r_init_session/1,		% +Session
