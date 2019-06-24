@@ -156,9 +156,10 @@ r_assign(_, VarName, _Value) :-
 
 r_eval_ex(Connection, Command, Result) :-
 	to_string(Command, CommandS),
-	phrase(r_expression(try(eval(parse(text=CommandS)),silent=true),[]),
-	       WrappedCommand),
-	r_eval(Connection, WrappedCommand, Result0),
+	r_assign($, 'Rserve2.cmd', CommandS),
+	r_eval(Connection,
+	       "try(eval(parse(text=Rserve2.cmd)),silent=TRUE)",
+	       Result0),
 	r_check_error(Result0),
 	Result = Result0.
 
