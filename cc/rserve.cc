@@ -799,7 +799,12 @@ PREDICATE(r_assign_, 3)
 
   get_Rref(A1, &ref);
   PlRExp *exp = term_to_rexp(A3);
-  ref->rc->assign(vname, exp->exp);
+  try
+  { ref->rc->assign(vname, exp->exp);
+  } catch(...)
+  { delete(exp);
+    throw;
+  }
   delete(exp);
   return TRUE;
 }
@@ -828,7 +833,12 @@ PREDICATE(r_eval, 3)
   get_Rref(A1, &ref);
   Rexp *result = ref->rc->eval(command, &status);
   if ( result )
-  { rc = unify_exp(A3, result);
+  { try
+    { rc = unify_exp(A3, result);
+    } catch(...)
+    { delete(result);
+      throw;
+    }
     delete result;
     return rc;
   }
