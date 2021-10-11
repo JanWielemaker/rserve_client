@@ -77,6 +77,9 @@ The            design            is              inspired             by
 %	    >=, >, ==, <, <=, =<, \=, '!=', :, <-|=
 %	  - `Expr1,Expr2` is translated into two R statements separated
 %	    by a newline.
+%	  - `{Expr1 ; ...; ExprN}` is translated into two R statements 
+%           separated by a semicolon, and the result of ExprN is 
+%           returned.
 %	  - Compound terms are translated to function calls.
 %
 %	This library loads r_expand_dot.pl,  which   uses  the `.` infix
@@ -129,6 +132,11 @@ r_expr([](Index, Array), Ctx) --> !,
 r_expr((A,B), Ctx) --> !,
 	r_expr(A, Ctx), "\n",
 	r_expr(B, Ctx).
+r_expr({}(Body), Ctx) --> !,
+    "{", r_expr(Body, Ctx), "}".
+r_expr((A;B), Ctx) --> !,
+    r_expr(A, Ctx), ";",
+    r_expr(B, Ctx).
 r_expr(Compound, Ctx) -->
 	{ compound(Compound),
 	  compound_name_arguments(Compound, Name, Args),
