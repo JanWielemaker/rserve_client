@@ -1,5 +1,5 @@
 name('rserve_client').
-version('1.1.1').
+version('1.1.2').
 title('R Rserve client').
 keywords(['R', 'statistics', 'chart', 'plot']).
 author( 'Jan Wielemaker', 'jan@swi-prolog.org' ).
