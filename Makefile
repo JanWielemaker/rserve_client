@@ -1,7 +1,7 @@
-CPPFLAGS=-std=c++11 -fPIC
-SOBJ=   $(PACKSODIR)/rserve.$(SOEXT)
-CFLAGS+=-I$(HDTHOME)/include
-SWICPPFLAGS=-std=c++11
+CPPFLAGS=-std=c++17 -fPIC
+SOBJ=   $(SWIPL_MODULE_DIR)/rserve.$(SWIPL_MODULE_EXT)
+SWIPL_CFLAGS+=-I$(HDTHOME)/include
+SWICPPFLAGS=-std=c++17
 COFLAGS=-O2 -gdwarf-2 -g3
 LIBS=-ldl -lcrypt -lm
 LD=g++
@@ -18,17 +18,17 @@ OBJ=cc/rserve.o $(RCONN)
 all:	$(SOBJ)
 
 $(SOBJ): $(OBJ)
-	mkdir -p $(PACKSODIR)
-	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $(OBJ) $(LIBS) $(SWISOLIB)
+	mkdir -p $(SWIPL_MODULE_DIR)
+	$(SWIPL_LD) $(SWIPL_MODULE_LDFLAGS) -o $@ $(OBJ) $(LIBS) $(SWIPL_MODULE_LIB)
 
 cc/rserve.o: cc/rserve.cc $(CXXCLIENT)/Makefile $(RCONNH)
-	$(CC) $(ARCH) $(CFLAGS) $(COFLAGS) $(SWICPPFLAGS) $(RSINCLUDE) -c -o $@ $<
+	$(SWIPL_CXX) $(SWIPL_CFLAGS) $(COFLAGS) $(SWICPPFLAGS) $(RSINCLUDE) -c -o $@ $<
 
 clean:
-	rm -f cc/rserve.o $(RCONN) *~
+	$(RM) cc/rserve.o $(RCONN) *~
 
 distclean: clean
-	rm -f $(SOBJ)
+	$(RM) $(SOBJ)
 
 check::
 install::
@@ -47,4 +47,4 @@ $(CXXCLIENT)/Makefile: $(CXXCLIENT)/configure $(CXXCLIENT)/Makefile.in
 	cd $(CXXCLIENT) && ./configure
 
 $(RCONN): $(CXXCLIENT)/Makefile $(RCONNIN)
-	$(CXX) -c $(CPPFLAGS) $(COFLAGS) $(RSINCLUDE) -o $@ $(CXXCLIENT)/Rconnection.cc
+	$(SWIPL_CXX) -c $(CPPFLAGS) $(COFLAGS) $(RSINCLUDE) -o $@ $(CXXCLIENT)/Rconnection.cc

@@ -44,7 +44,7 @@
 #include <sisocks.h>
 #include <Rconnection.h>
 #include <SWI-Stream.h>
-#include <SWI-cpp.h>
+#include <SWI-cpp2.h>
 
 		 /*******************************
 		 *	       SYMBOL		*
@@ -55,8 +55,8 @@
 
 typedef struct Rref
 { Rconnection   *rc;			/* Connection handle */
-  atom_t         symbol;		/* associated symbol */
-  atom_t	 name;			/* alias name */
+  PlAtom         symbol;		/* associated symbol */
+  PlAtom	 name;			/* alias name */
   int	         flags;			/* flags */
 } Rref;
 
@@ -65,11 +65,9 @@ typedef struct Rref
 		 *	      ALIAS		*
 		 *******************************/
 
-#define NULL_ATOM (atom_t)0
-
 typedef struct alias_cell
-{ atom_t	name;
-  atom_t	symbol;
+{ PlAtom	name;
+  PlAtom	symbol;
   struct alias_cell *next;
 } alias_cell;
 
@@ -79,13 +77,15 @@ std::mutex alias_lock;
 static unsigned int alias_size = ALIAS_HASH_SIZE;
 static alias_cell *alias_entries[ALIAS_HASH_SIZE];
 
+// TODO: use AtomMap in SWI-cpp2-atommap.h (which also does locking)
+
 static unsigned int
-atom_hash(atom_t a)
-{ return (unsigned int)(a>>7) % alias_size;
+atom_hash(PlAtom a)
+{ return (unsigned int)(a.unwrap()>>7) % alias_size;
 }
 
-static atom_t
-get_alias(atom_t name)
+static PlAtom
+get_alias(PlAtom name)
 { for(alias_cell *c = alias_entries[atom_hash(name)];
       c;
       c = c->next)
@@ -93,23 +93,23 @@ get_alias(atom_t name)
       return c->symbol;
   }
 
-  return NULL_ATOM;
+  return PlAtom(PlAtom::null);
 }
 
 static void
-alias(atom_t name, atom_t symbol)
+alias(PlAtom name, PlAtom symbol)
 { unsigned int key = atom_hash(name);
 
   alias_lock.lock();
-  if ( !get_alias(name) )
-  { alias_cell *c = (alias_cell *)malloc(sizeof(*c));
+  if ( get_alias(name).is_null() )
+  { alias_cell *c = (alias_cell *)malloc(sizeof *c);
 
     c->name   = name;
     c->symbol = symbol;
     c->next   = alias_entries[key];
     alias_entries[key] = c;
-    PL_register_atom(c->name);
-    PL_register_atom(c->symbol);
+    c->name.register_ref();
+    c->symbol.register_ref();
     alias_lock.unlock();
   } else
   { alias_lock.unlock();
@@ -118,7 +118,7 @@ alias(atom_t name, atom_t symbol)
 }
 
 static void
-unalias(atom_t name)
+unalias(PlAtom name)
 { unsigned int key = atom_hash(name);
   alias_cell *c, *prev=NULL;
 
@@ -129,8 +129,8 @@ unalias(atom_t name)
 	prev->next = c->next;
       else
 	alias_entries[key] = c->next;
-      PL_unregister_atom(c->name);
-      PL_unregister_atom(c->symbol);
+      c->name.unregister_ref();
+      c->symbol.unregister_ref();
       free(c);
 
       break;
@@ -146,7 +146,7 @@ unalias(atom_t name)
 
 static int
 write_R_ref(IOSTREAM *s, atom_t symbol, int flags)
-{ Rref **refp = (Rref **)PL_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
   Rref *ref = *refp;
   (void)flags;
 
@@ -161,17 +161,17 @@ GC an rserve connection from the atom garbage collector.
 
 static int
 release_R_ref(atom_t symbol)
-{ Rref **refp = (Rref **)PL_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
   Rref *ref   = *refp;
   Rconnection *rc;
 
-  assert(ref->name == NULL_ATOM);
+  assert(ref->name.is_null());
 
   if ( (rc=ref->rc) )
   { ref->rc = NULL;
     delete rc;
   }
-  PL_free(ref);
+  Plx_free(ref);
 
   return TRUE;
 }
@@ -179,7 +179,7 @@ release_R_ref(atom_t symbol)
 
 static int
 save_R_ref(atom_t symbol, IOSTREAM *fd)
-{ Rref **refp = (Rref **)PL_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
   Rref *ref   = *refp;
   (void)fd;
 
@@ -191,9 +191,11 @@ static atom_t
 load_R_ref(IOSTREAM *fd)
 { (void)fd;
 
-  return PL_new_atom("<saved-Rserve-ref>");
+  return Plx_new_atom("<saved-Rserve-ref>");
 }
 
+
+// TODO: use the new (SWI-cpp2.h) blob interface
 
 static PL_blob_t R_blob =
 { PL_BLOB_MAGIC,
@@ -209,36 +211,36 @@ static PL_blob_t R_blob =
 
 
 static int
-unify_R_ref(term_t t, Rref *ref)
-{ if ( ref->name )
-  { if ( !ref->symbol )
-    { PlTerm tmp;
+unify_R_ref(PlTerm t, Rref *ref)
+{ if ( ref->name.not_null() )
+  { if ( ref->symbol.is_null() )
+    { PlTermScoped tmp;
 
-      if ( PL_unify_blob(tmp, &ref, sizeof(ref), &R_blob) &&
-	   PL_get_atom(tmp, &ref->symbol) )
+      if ( tmp.unify_blob(&ref, sizeof ref, &R_blob) &&
+	   tmp.get_atom(&ref->symbol) )
       { alias(ref->name, ref->symbol);
       } else
       { assert(0);
       }
     }
-    return PL_unify_atom(t, ref->name);
-  } else if ( ref->symbol )
-  { return PL_unify_atom(t, ref->symbol);
+    return t.unify_atom(ref->name);
+  } else if ( ref->symbol.not_null() )
+  { return t.unify_atom(ref->symbol);
   } else
-  { return ( PL_unify_blob(t, &ref, sizeof(ref), &R_blob) &&
-	     PL_get_atom(t, &ref->symbol)
+  { return ( t.unify_blob(&ref, sizeof ref, &R_blob) &&
+	     t.get_atom(&ref->symbol)
 	   );
   }
 }
 
 
 static Rref*
-symbol_Rref(atom_t symbol)
+symbol_Rref(PlAtom symbol)
 { void *data;
   size_t len;
   PL_blob_t *type;
 
-  if ( (data=PL_blob_data(symbol, &len, &type)) && type == &R_blob )
+  if ( (data=symbol.blob_data(&len, &type)) && type == &R_blob )
   { Rref **erd = (Rref **)data;
     return *erd;
   }
@@ -248,11 +250,11 @@ symbol_Rref(atom_t symbol)
 
 
 static int
-get_Rref(term_t t, Rref **erp, int warn=TRUE)
-{ atom_t a = NULL_ATOM;
+get_Rref(PlTerm t, Rref **erp, int warn=TRUE)
+{ PlAtom a(PlAtom::null);
 
-  if ( PL_get_atom(t, &a) )
-  { for(int i=0; a && i<2; i++)
+  if ( t.get_atom(&a) )
+  { for(int i=0; a.not_null() && i<2; i++)
     { Rref *ref;
 
       if ( (ref=symbol_Rref(a)) )
@@ -264,12 +266,13 @@ get_Rref(term_t t, Rref **erp, int warn=TRUE)
 	}
       }
 
-      if ( !(a = get_alias(a)) )
-      { PlTerm r;
+      a = get_alias(a);
+      if ( a.is_null() )
+      { PlTerm_var r;
 	PlTermv av(PlTerm(t), r);
 
 	if ( !PlCall("rserve", "r_open_hook", av) ||
-	     !PL_get_atom(r, &a) )
+	     !r.get_atom(&a) )
 	  break;
       }
     }
@@ -287,11 +290,11 @@ get_Rref(term_t t, Rref **erp, int warn=TRUE)
 		 *	      UTIL		*
 		 *******************************/
 
-static const char *
+static const std::string
 sisocks_msg(int rc)
-{ static char msg[128];				/* TBD: thread safety */
+{ char msg[128];
 
-  sockerrorchecks(msg, sizeof(msg), -1);
+  sockerrorchecks(msg, sizeof msg, -1);
 
   return msg;
 }
@@ -302,9 +305,9 @@ public:
   SISocksError(int rc) :
     PlException(PlCompound("error",
 			   PlTermv(PlCompound("sisocks_error",
-					      PlTermv((long)rc,
-						      sisocks_msg(rc))),
-				   PlTerm())))
+					      PlTermv(rc,
+						      PlTerm_string(sisocks_msg(rc)))),
+				   PlTerm_var())))
   {
   }
 };
@@ -324,7 +327,7 @@ public:
     PlException(PlCompound("error",
 			   PlTermv(PlCompound("r_error",
 					      PlTermv(PlTerm((long)status))),
-				   PlTerm())))
+				   PlTerm_var())))
   {
   }
 };
@@ -342,20 +345,10 @@ rok(int status)
  */
 
 static void
-get_string(const PlTerm &t, std::string &str)
-{ char *s;
-  size_t len;
-
-  if ( PL_get_nchars(t, &len, &s,
-		     CVT_ATOM|CVT_STRING|CVT_NUMBER|CVT_EXCEPTION|REP_UTF8) )
-  { if ( strlen(s) == len )
-    { str.assign(s, len);
-      return;
-    }
+get_string(PlTerm t, std::string *str)
+{ *str = t.get_nchars(CVT_ATOM|CVT_STRING|CVT_NUMBER|CVT_EXCEPTION|REP_UTF8);
+  if ( strlen(str->c_str()) != str->length() )
     throw PlDomainError("nul_terminated_string", t);
-  }
-
-  PlException().cppThrow();
 }
 
 
@@ -395,7 +388,7 @@ public:
     { switch(t)
       { case D_BOOLEAN:
 	  sv.reserve(16);
-	  sv.append(sizeof(int), 0);
+	  sv.append(sizeof (int), 0);
 	  break;
 	case D_INTEGER:
 	  iv.reserve(16);
@@ -417,12 +410,12 @@ public:
     }
   }
 
-  void append(const PlTerm &t)
+  void append(PlTerm t)
   { switch(type)
     { case D_UNKNOWN:
-	switch(PL_term_type(t))
+	switch(t.type())
 	{ case PL_VARIABLE:
-	    throw PlInstantiationError();
+	    throw PlInstantiationError(t);
 	  case PL_INTEGER:
 	    promote(D_INTEGER);
 	    goto case_i;
@@ -430,9 +423,9 @@ public:
 	    promote(D_DOUBLE);
 	    goto case_d;
 	  case PL_ATOM:
-	  { atom_t a;
+	  { PlAtom a(PlAtom::null);
 
-	    if ( PL_get_atom(t, &a) &&
+	    if ( t.get_atom(&a) &&
 		 (ATOM_true == a || ATOM_false == a) )
 	    { promote(D_BOOLEAN);
 	      goto case_b;
@@ -448,20 +441,18 @@ public:
       case_b:
       { int i;
 
-	if ( PL_get_bool_ex(t, &i) )
-	{ sv.push_back(i != 0);
-	  break;
-	}
-	PlException().cppThrow();	/* FIXME: Promote */
+	t.get_bool_ex(&i);
+	sv.push_back(i != 0);
+	break;
       }
       case D_INTEGER:
       case_i:
       { int i;
 	double d;
 
-	if ( PL_get_integer(t, &i) )
+	if ( t.get_integer(&i) )
 	{ iv.push_back(i);
-	} else if ( PL_get_float(t, &d) )
+	} else if (t.get_float(&d) )
 	{ promote(D_DOUBLE);
 	  dv.push_back(d);
 	} else
@@ -470,12 +461,12 @@ public:
       }
       case D_DOUBLE:
       case_d:
-	dv.push_back(t);
+	dv.push_back(t.unwrap()); // TODO(mgondan): is this correct?
         break;
       case D_STRING:
       case_s:
       { std::string s;
-	get_string(t, s);
+	get_string(t, &s);
 	sv += s;
 	sv.push_back(0);
 	break;
@@ -483,13 +474,13 @@ public:
     }
   }
 
-  void finish(const PlTerm &t)
+  void finish(PlTerm t)
   { switch(type)
     { case D_UNKNOWN:
 	throw PlTypeError("R-expression", t);
       case D_BOOLEAN:
       { unsigned int *lenptr = (unsigned int*)sv.data();
-	*lenptr = (unsigned int)(sv.size()-sizeof(unsigned int));
+	*lenptr = (unsigned int)(sv.size()-sizeof (unsigned int));
 	exp = new Rboolean((unsigned char*)sv.data(), sv.size());
 	break;
       }
@@ -509,40 +500,41 @@ public:
 };
 
 static void
-list_to_rexp(const PlTerm &t, PlRExp *exp)
-{ PlTail list(t);
-  PlTerm head;
+list_to_rexp(PlTerm t, PlRExp *exp)
+{ PlTerm_tail list(t);
+  PlTerm_var head;
 
-  for(size_t i=0; list.next(head); i++)
+  while( list.next(head) )
     exp->append(head);
+  PlCheckFail(list.close());
 
   exp->finish(t);
 }
 
 
 static PlRExp *
-term_to_rexp(const PlTerm &t)
+term_to_rexp(PlTerm t)
 { PlRExp *exp = new PlRExp;
 
-  switch(PL_term_type(t))
+  switch(t.type())
   { case PL_LIST_PAIR:
     { list_to_rexp(t, exp);
       break;
     }
     case PL_INTEGER:
-    { int i = t;
+    { int i = t.as_int(); // TODO(mgondan): is this correct?
       exp->exp = new Rinteger(&i, 1);
       break;
     }
     case PL_FLOAT:
-    { double f = t;
+    { double f = t.as_double();
       exp->exp = new Rdouble(&f, 1);
       break;
     }
     case PL_ATOM:
-    { atom_t a;
+    { PlAtom a(PlAtom::null);
 
-      if ( PL_get_atom(t, &a) &&
+      if ( t.get_atom(&a) &&
 	   (ATOM_true == a || ATOM_false == a) )
       { struct { unsigned int len; unsigned char data[1]; } b;
 	b.len = 1;
@@ -556,25 +548,25 @@ term_to_rexp(const PlTerm &t)
     case PL_STRING:
     { std::string s;
 
-      get_string(t, s);
+      get_string(t, &s);
       s.push_back(0);
       s.push_back(1);
       exp->exp = new Rstrings(s);
       break;
     }
     case PL_TERM:
-    { const char *nm = t.name();
-      if ( nm && strcmp(nm, "c") == 0 )
-      { ARITY_T len = t.arity();
+    { std::string nm = t.name().as_string();
+      if ( nm == "c" )
+      { size_t len = t.arity();
 
-	for(ARITY_T i=1; i<= len; i++)
+	for(size_t i=1; i<= len; i++)
 	  exp->append(t[i]);
 	exp->finish(t);
 	break;
-      } else if ( nm && strcmp(nm, "+") == 0 && t.arity() == 1)
+      } else if ( nm == "+" && t.arity() == 1)
       { std::string s;
 
-	get_string(t[1], s);
+	get_string(t[1], &s);
 	s.push_back(0);
 	s.push_back(1);
 	exp->exp = new Rstrings(s);
@@ -596,19 +588,19 @@ static const PlAtom ATOM_clos("<XT_CLOS>");
 static const PlAtom ATOM_unknown("<XT_UNKNOWN>");
 
 static int
-unify_exp(const PlTerm &t, const Rexp *exp)
+unify_exp(PlTerm t, const Rexp *exp)
 { switch(exp->type)
   { case XT_NULL:
-      return PL_unify_atom(t, ATOM_null.handle);
+      return t.unify_atom(ATOM_null);
     case XT_ARRAY_INT:
     { Rinteger *ri = (Rinteger*)exp;
       Rsize_t len = ri->length();
-      PlTail tail(t);
-      PlTerm h;
+      PlTerm_tail tail(t);
+      PlTerm_var h;
 
       for(Rsize_t i=0; i<len; i++)
-      { if ( !PL_put_integer(h, ri->intAt(i)) ||
-	     !tail.append(h) )
+      { h.put_integer(ri->intAt(i));
+        if ( !tail.append(h) )
 	  return FALSE;
       }
       return tail.close();
@@ -616,12 +608,12 @@ unify_exp(const PlTerm &t, const Rexp *exp)
     case XT_ARRAY_BOOL:
     { Rboolean *rs = (Rboolean*)exp;
       Rsize_t len = rs->length();
-      PlTail tail(t);
-      PlTerm h;
+      PlTerm_tail tail(t);
+      PlTerm_var h;
 
       for(Rsize_t i=0; i<len; i++)
-      { if ( !PL_put_bool(h, rs->boolAt(i)) ||
-	     !tail.append(h) )
+      { h.put_bool(rs->boolAt(i));
+        if ( !tail.append(h) )
 	  return FALSE;
       }
       return tail.close();
@@ -629,8 +621,8 @@ unify_exp(const PlTerm &t, const Rexp *exp)
     case XT_ARRAY_DOUBLE:
     { Rdouble *rd = (Rdouble*)exp;
       Rsize_t len = rd->length();
-      PlTail tail(t);
-      PlTerm h;
+      PlTerm_tail tail(t);
+      PlTerm_var h;
       int allints = TRUE;
 
       for(Rsize_t i=0; i<len; i++)
@@ -643,14 +635,14 @@ unify_exp(const PlTerm &t, const Rexp *exp)
 
       if ( allints )
       { for(Rsize_t i=0; i<len; i++)
-	{ if ( !PL_put_int64(h, (int64_t)rd->doubleAt(i)) ||
-	       !tail.append(h) )
+        { h.put_int64((int64_t)rd->doubleAt(i));
+          if ( !tail.append(h) )
 	    return FALSE;
 	}
       } else
       { for(Rsize_t i=0; i<len; i++)
-	{ if ( !PL_put_float(h, rd->doubleAt(i)) ||
-	       !tail.append(h) )
+        { h.put_float(rd->doubleAt(i));
+            if ( !tail.append(h) )
 	    return FALSE;
 	}
       }
@@ -659,12 +651,12 @@ unify_exp(const PlTerm &t, const Rexp *exp)
     case XT_ARRAY_STR:
     { Rstrings *rs = (Rstrings*)exp;
       Rsize_t len = rs->length();
-      PlTail tail(t);
-      PlTerm h;
+      PlTerm_tail tail(t);
+      PlTerm_var h;
 
       for(Rsize_t i=0; i<len; i++)
-      { if ( !PL_put_variable(h) ||
-	     !PL_unify_chars(h, PL_STRING|REP_UTF8, -1, rs->stringAt(i)) ||
+      { h.put_variable();
+        if ( !h.unify_chars(PL_STRING|REP_UTF8, -1, rs->stringAt(i)) ||
 	     !tail.append(h) )
 	  return FALSE;
       }
@@ -672,11 +664,11 @@ unify_exp(const PlTerm &t, const Rexp *exp)
     }
     case XT_VECTOR:
     { const Rexp *e;
-      PlTail tail(t);
-      PlTerm h;
+      PlTerm_tail tail(t);
+      PlTerm_var h;
 
       for(int i=0; e=(const Rexp*)((Rvector*)exp)->elementAt(i); i++)
-      { PL_put_variable(h);
+      { h.put_variable();
 	if ( !unify_exp(h, e) ||
 	     !tail.append(h) )
 	  return FALSE;
@@ -685,17 +677,17 @@ unify_exp(const PlTerm &t, const Rexp *exp)
     }
     case XT_STR:
     { Rstring *rs = (Rstring*)exp;
-      return PL_unify_chars(t, PL_STRING|REP_UTF8, -1, rs->string());
+      return t.unify_chars(PL_STRING|REP_UTF8, -1, rs->string());
     }
     case XT_SYMNAME:
     { Rstring *rs = (Rstring*)exp;
-      return PL_unify_chars(t, PL_ATOM|REP_UTF8, -1, rs->string());
+      return t.unify_chars(PL_ATOM|REP_UTF8, -1, rs->string());
     }
     case XT_CLOS:
-    { return PL_unify_atom(t, ATOM_clos.handle);
+    { return t.unify_atom(ATOM_clos);
     }
     case XT_UNKNOWN:
-    { return PL_unify_atom(t, ATOM_unknown.handle);
+    { return t.unify_atom(ATOM_unknown);
     }
     default:
       Sdprintf("Rexp of type %d\n", exp->type);
@@ -716,31 +708,29 @@ static const PlAtom ATOM_port("port");
 
 PREDICATE(r_open, 2)
 { Rref *ref;
-  atom_t alias = NULL_ATOM;
+  PlAtom alias(PlAtom::null);
   int once = FALSE;
-  const char *host = "127.0.0.1";
+  std::string host("127.0.0.1");
   int port = default_Rsrv_port;
 
-  PlTail tail(A2);
-  PlTerm opt;
+  PlTerm_tail tail(A2);
+  PlTerm_var opt;
   while(tail.next(opt))
-  { atom_t name;
+  { PlAtom name(PlAtom::null);
     size_t arity;
 
-    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    if ( opt.get_name_arity(&name, &arity) && arity == 1 )
     { if ( ATOM_host == name )
-      { host = opt[1];
+      { host = opt[1].as_atom().as_string();
       } else if	( ATOM_port == name )
-      { port = opt[1];
+      { port = opt[1].as_int();
       } else if ( ATOM_alias == name )
-      { if ( !PL_get_atom_ex(opt[1], &alias) )
-	  return FALSE;
+      { opt[1].get_atom_ex(&alias);
 	once = TRUE;
       } else if ( ATOM_open == name )
-      { atom_t open;
+     { PlAtom open(PlAtom::null);
 
-	if ( !PL_get_atom_ex(opt[1], &open) )
-	  return FALSE;
+	opt[1].get_atom_ex(&open);
 	if ( ATOM_once == open )
 	  once = TRUE;
 	else
@@ -748,23 +738,24 @@ PREDICATE(r_open, 2)
       }
     }
   }
+  PlCheckFail(tail.close());
 
-  if ( alias && once )
-  { atom_t existing;
+  if ( alias.not_null() && once )
+  { PlAtom existing = get_alias(alias);
 
-    if ( (existing=get_alias(alias)) )
+    if ( existing.not_null() )
     { Rref *eref;
 
       if ( (eref=symbol_Rref(existing)) &&
 	   (eref->flags&R_OPEN_ONCE) )
-	return PL_unify_atom(A1, existing);
+	return A1.unify_atom(existing);
     }
   }
 
-  ref = (Rref *)PL_malloc(sizeof(*ref));
-  memset(ref, 0, sizeof(*ref));
+  ref = (Rref *)Plx_malloc(sizeof *ref);
+  memset(ref, 0, sizeof *ref);
 
-  ref->rc = new Rconnection(host, port);
+  ref->rc = new Rconnection(host.c_str(), port);
   sisocks_ok(ref->rc->connect());
   ref->name = alias;
   if ( once )
@@ -782,9 +773,9 @@ PREDICATE(r_close, 1)
 
   ref->rc = NULL;
   ref->flags |= R_DESTROYED;
-  if ( ref->name )
+  if ( ref->name.not_null() )
   { unalias(ref->name);
-    ref->name = NULL_ATOM;
+    ref->name.reset();
   }
 
   delete rc;
@@ -795,12 +786,12 @@ PREDICATE(r_close, 1)
 PREDICATE(r_assign_, 3)
 { Rref *ref;
   size_t len;
-  const char *vname = A2;
+  std::string vname = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_NUMBER|CVT_EXCEPTION|REP_UTF8);
 
   get_Rref(A1, &ref);
   PlRExp *exp = term_to_rexp(A3);
   try
-  { ref->rc->assign(vname, exp->exp);
+  { ref->rc->assign(vname.c_str(), exp->exp);
   } catch(...)
   { delete(exp);
     throw;
@@ -812,12 +803,12 @@ PREDICATE(r_assign_, 3)
 
 PREDICATE(r_eval, 2)
 { Rref *ref;
-  const char *command = A2;
+  std::string command = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   int rc;
   int status = 0;
 
   get_Rref(A1, &ref);
-  ref->rc->eval(command, &status, 1);
+  ref->rc->eval(command.c_str(), &status, 1);
   if ( status == 0 )
     return TRUE;
   throw RError(status);
@@ -826,12 +817,12 @@ PREDICATE(r_eval, 2)
 
 PREDICATE(r_eval, 3)
 { Rref *ref;
-  const char *command = A2;
+  std::string command = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   int rc;
   int status = 0;
 
   get_Rref(A1, &ref);
-  Rexp *result = ref->rc->eval(command, &status);
+  Rexp *result = ref->rc->eval(command.c_str(), &status);
   if ( result )
   { try
     { rc = unify_exp(A3, result);
@@ -849,30 +840,30 @@ PREDICATE(r_eval, 3)
 
 PREDICATE(r_read_file, 3)
 { Rref *ref;
-  const char *filename = A2;
+  std::string filename = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   char buf[4096];
   std::string data;
   int rc;
 
   get_Rref(A1, &ref);
-  rok(ref->rc->openFile(filename));
-  data.reserve(sizeof(buf));
-  while((rc=ref->rc->readFile(buf, sizeof(buf))) > 0)
+  rok(ref->rc->openFile(filename.c_str()));
+  data.reserve(sizeof buf);
+  while((rc=ref->rc->readFile(buf, sizeof buf)) > 0)
   { data.append(buf, (size_t)rc);
   }
   rok(ref->rc->closeFile());
 
-  return PL_unify_chars(A3, PL_STRING, data.size(), data.data());
+  return A3.unify_chars(PL_STRING, data.size(), data.data());
 }
 
 
 PREDICATE(r_remove_file, 2)
 { Rref *ref;
-  const char *filename = A2;
+  std::string filename = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
   int rc;
 
   get_Rref(A1, &ref);
-  rok(ref->rc->removeFile(filename));
+  rok(ref->rc->removeFile(filename.c_str()));
 
   return TRUE;
 }
@@ -880,11 +871,11 @@ PREDICATE(r_remove_file, 2)
 
 PREDICATE(r_login, 3)
 { Rref *ref;
-  const char *user = A2;
-  const char *password = A3;
+  std::string user = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+  std::string password = A3.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
 
   get_Rref(A1, &ref);
-  rok(ref->rc->login(user, password));
+  rok(ref->rc->login(user.c_str(), password.c_str()));
 
   return TRUE;
 }
@@ -942,18 +933,16 @@ PREDICATE(r_detach_, 2)
   int status = 0;
 
   get_Rref(A1, &ref);
-  Rsession *session = ref->rc->detach(&status);
+  std::unique_ptr<Rsession> session(ref->rc->detach(&status));
 
   if ( session )
   { char hkey[65];
     int rc;
 
     tohex(hkey, session->key(), 32);
-    rc = (A2 = PlCompound("r_session", PlTermv(session->host(),
-					       (long)session->port(),
-					       hkey)));
-    delete session;
-    return rc;
+    return A2.unify_term(PlCompound("r_session", PlTermv(PlTerm_string(session->host()),
+							 PlTerm_integer(session->port()),
+							 PlTerm_string(hkey))));
   }
 
   throw RError(status);
@@ -963,24 +952,23 @@ PREDICATE(r_detach_, 2)
 static const PlFunctor FUNCTOR_r_session3("r_session", 3);
 
 PREDICATE(r_resume, 3)
-{ if ( PL_is_functor(A2, FUNCTOR_r_session3.functor) )
+{ if ( A2.is_functor(FUNCTOR_r_session3) )
   { char key[32];
-    char *host = A2[1];
-    int   port = (int)A2[2];
-    char *hkey = A2[3];
+    std::string host = A2[1].get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+    int   port = A2[2].as_int();
+    std::string hkey = A2[3].get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
     Rref *ref;
-    atom_t alias = NULL_ATOM;
+    PlAtom alias(PlAtom::null);
 
-    if ( !PL_is_variable(A3) &&
-	 !PL_get_atom_ex(A3, &alias) )
-      return FALSE;
+    if ( !A3.is_variable() )
+      A3.get_atom_ex(&alias);
 
-    if ( unhex(key, hkey, sizeof(key)) < 0 )
+    if ( unhex(key, hkey.c_str(), sizeof key) < 0 )
       throw PlDomainError("r_session_key", A2[3]);
-    Rsession session(host, port, key);
+    Rsession session(host.c_str(), port, key);
 
-    ref = (Rref *)PL_malloc(sizeof(*ref));
-    memset(ref, 0, sizeof(*ref));
+    ref = (Rref *)Plx_malloc(sizeof *ref);
+    memset(ref, 0, sizeof *ref);
 
     ref->rc = new Rconnection(&session);
     sisocks_ok(ref->rc->connect());
@@ -996,20 +984,20 @@ PREDICATE(r_resume, 3)
 #ifdef CMD_ctrl
 PREDICATE(r_server_eval, 2)
 { Rref *ref;
-  const char *command = A2;
+  std::string command = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
 
   get_Rref(A1, &ref);
-  rok(ref->rc->serverEval(command));
+  rok(ref->rc->serverEval(command.c_str()));
 
   return TRUE;
 }
 
 PREDICATE(r_server_source, 2)
 { Rref *ref;
-  const char *filename = A2;
+  std::string filename = A2.get_nchars(CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
 
   get_Rref(A1, &ref);
-  rok(ref->rc->serverEval(filename));
+  rok(ref->rc->serverEval(filename.c_str()));
 
   return TRUE;
 }
