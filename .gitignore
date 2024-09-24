@@ -3,3 +3,4 @@
 *.o
 *~
 buildenv.sh
+status.db
