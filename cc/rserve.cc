@@ -120,7 +120,7 @@ alias(PlAtom name, PlAtom symbol)
 static void
 unalias(PlAtom name)
 { unsigned int key = atom_hash(name);
-  alias_cell *c, *prev=NULL;
+  alias_cell *c, *prev=nullptr;
 
   alias_lock.lock();
   for(c = alias_entries[key]; c; prev=c, c = c->next)
@@ -146,7 +146,7 @@ unalias(PlAtom name)
 
 static int
 write_R_ref(IOSTREAM *s, atom_t symbol, int flags)
-{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, nullptr, nullptr);
   Rref *ref = *refp;
   (void)flags;
 
@@ -161,14 +161,14 @@ GC an rserve connection from the atom garbage collector.
 
 static int
 release_R_ref(atom_t symbol)
-{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, nullptr, nullptr);
   Rref *ref   = *refp;
   Rconnection *rc;
 
   assert(ref->name.is_null());
 
   if ( (rc=ref->rc) )
-  { ref->rc = NULL;
+  { ref->rc = nullptr;
     delete rc;
   }
   Plx_free(ref);
@@ -179,7 +179,7 @@ release_R_ref(atom_t symbol)
 
 static int
 save_R_ref(atom_t symbol, IOSTREAM *fd)
-{ Rref **refp = (Rref **)Plx_blob_data(symbol, NULL, NULL);
+{ Rref **refp = (Rref **)Plx_blob_data(symbol, nullptr, nullptr);
   Rref *ref   = *refp;
   (void)fd;
 
@@ -202,9 +202,9 @@ static PL_blob_t R_blob =
   PL_BLOB_UNIQUE,
   (char*)"rserve",
   release_R_ref,
-  NULL,
+  nullptr,
   write_R_ref,
-  NULL,
+  nullptr,
   save_R_ref,
   load_R_ref
 };
@@ -245,7 +245,7 @@ symbol_Rref(PlAtom symbol)
     return *erd;
   }
 
-  return (Rref*)NULL;
+  return (Rref*)nullptr;
 }
 
 
@@ -302,10 +302,10 @@ sisocks_msg(int rc)
 class SISocksError : public PlException
 {
 public:
-  SISocksError(int rc) :
+  SISocksError(int rc) : // TODO: use PlGeneralError()
     PlException(PlCompound("error",
 			   PlTermv(PlCompound("sisocks_error",
-					      PlTermv(rc,
+					      PlTermv(PlTerm_integer(rc),
 						      PlTerm_string(sisocks_msg(rc)))),
 				   PlTerm_var())))
   {
@@ -323,10 +323,10 @@ sisocks_ok(int status)
 class RError : public PlException
 {
 public:
-  RError(int status) :
+  RError(int status) : // TODO: use PlGeneralError()
     PlException(PlCompound("error",
 			   PlTermv(PlCompound("r_error",
-					      PlTermv(PlTerm((long)status))),
+					      PlTermv(PlTerm_integer(status))),
 				   PlTerm_var())))
   {
   }
@@ -367,7 +367,7 @@ static const PlAtom ATOM_true("true");
 class PlRExp
 {
 public:
-  Rexp *exp = (Rexp*)NULL;
+  Rexp *exp = (Rexp*)nullptr;
   dtype type = D_UNKNOWN;
   std::vector<int> iv;
   std::vector<double> dv;
@@ -771,7 +771,7 @@ PREDICATE(r_close, 1)
   get_Rref(A1, &ref);
   Rconnection *rc = ref->rc;
 
-  ref->rc = NULL;
+  ref->rc = nullptr;
   ref->flags |= R_DESTROYED;
   if ( ref->name.not_null() )
   { unalias(ref->name);
